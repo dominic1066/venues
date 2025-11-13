@@ -1,0 +1,137 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "🚀 Flutter App (Debug)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "flutterMode": "debug"
+        },
+        {
+            "name": "🚀 Flutter App (Release)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "flutterMode": "release"
+        },
+        {
+            "name": "🖥️ Flutter App (Windows)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "flutterMode": "debug",
+            "deviceId": "windows"
+        },
+        {
+            "name": "🌐 Flutter App (Chrome)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "flutterMode": "debug",
+            "deviceId": "chrome"
+        },
+        {
+            "name": "🌐 Flutter Web (Debug Enhanced)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "flutterMode": "debug",
+            "deviceId": "chrome",
+            "args": [
+                "--web-renderer=html",
+                "--dart-define=FLUTTER_WEB_USE_SKIA=false"
+            ]
+        },
+        {
+            "name": "📊 Test API with Diagnostics",
+            "type": "dart",
+            "request": "launch",
+            "program": "test_with_diagnostics.dart",
+            "console": "debugConsole",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "�🐛 Debug VenuesService Step-by-Step",
+            "type": "dart",
+            "request": "launch",
+            "program": "debug_test.dart",
+            "console": "terminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "🐛 Debug VenuesService (Alt Console)",
+            "type": "dart",
+            "request": "launch",
+            "program": "debug_test.dart",
+            "console": "externalTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Debug Interactive Test",
+            "type": "dart",
+            "request": "launch",
+            "program": "interactive_test.dart",
+            "console": "debugConsole",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Debug API Connectivity Test",
+            "type": "dart",
+            "request": "launch",
+            "program": "test_api_connectivity.dart",
+            "console": "debugConsole",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Debug Unit Tests",
+            "type": "dart",
+            "request": "launch",
+            "program": "test/venues_service_test.dart",
+            "console": "debugConsole",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "🐛 Debug Unit Tests (Step-by-Step)",
+            "type": "dart",
+            "request": "launch",
+            "program": "test/debug_venues_service_test.dart",
+            "console": "debugConsole",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "🌐 Debug Real API Tests",
+            "type": "dart",
+            "request": "launch",
+            "program": "test/real_api_test.dart",
+            "console": "debugConsole",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "🚀 Quick Real API Test",
+            "type": "dart",
+            "request": "launch",
+            "program": "test_real_api.dart",
+            "console": "debugConsole",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Debug Flutter App",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "console": "debugConsole",
+            "cwd": "${workspaceFolder}",
+            "flutterMode": "debug"
+        },
+        {
+            "name": "Run All Tests",
+            "type": "dart",
+            "request": "launch",
+            "program": "test",
+            "console": "debugConsole",
+            "cwd": "${workspaceFolder}",
+            "args": ["--reporter", "expanded"]
+        }
+    ]
+}

@@ -24,7 +24,7 @@
             "deviceId": "windows"
         },
         {
-            "name": "� Flutter App (macOS)",
+            "name": "🍎 Flutter App (macOS)",
             "type": "dart",
             "request": "launch",
             "program": "lib/main.dart",
@@ -32,7 +32,15 @@
             "deviceId": "macos"
         },
         {
-            "name": "�🌐 Flutter App (Chrome)",
+            "name": "📱 Flutter App (iPhone)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "flutterMode": "debug",
+            "deviceId": "00008110-0016151A0A90401E"
+        },
+        {
+            "name": "🌐 Flutter App (Chrome)",
             "type": "dart",
             "request": "launch",
             "program": "lib/main.dart",

@@ -4,11 +4,14 @@ import '../models/models.dart';
 import 'package:flutter/foundation.dart';
 
 class VenuesService {
-  static const String _baseUrl = 'http://localhost:3000';
+  // static const String _baseUrl = 'http://localhost:3000';
+  static const String _baseUrl =
+      'https://edgy-nonluminescent-kymani.ngrok-free.dev';
   final http.Client _client;
   final bool enableDiagnostics;
 
-  VenuesService({http.Client? client, this.enableDiagnostics = false}) : _client = client ?? http.Client();
+  VenuesService({http.Client? client, this.enableDiagnostics = false})
+    : _client = client ?? http.Client();
 
   /// Disposes the HTTP client
   void dispose() {
@@ -16,7 +19,10 @@ class VenuesService {
   }
 
   /// Helper method to handle API responses - completely silent
-  Map<String, dynamic> _handleResponse(http.Response response, String endpoint) {
+  Map<String, dynamic> _handleResponse(
+    http.Response response,
+    String endpoint,
+  ) {
     if (enableDiagnostics) {
       debugPrint('🌐 API Call: $endpoint');
       debugPrint('📊 Status: ${response.statusCode}');
@@ -31,7 +37,9 @@ class VenuesService {
             debugPrint('✅ Success: Found ${groups?.length ?? 0} venue groups');
           } else if (data.containsKey('observations')) {
             final observations = data['observations'] as List?;
-            debugPrint('✅ Success: Found ${observations?.length ?? 0} observations');
+            debugPrint(
+              '✅ Success: Found ${observations?.length ?? 0} observations',
+            );
           } else {
             debugPrint('✅ Success: Data received');
           }
@@ -62,7 +70,9 @@ class VenuesService {
       );
     } else if (response.statusCode == 500) {
       throw ApiException(
-        message: response.body.isNotEmpty ? response.body : 'Internal Server Error',
+        message: response.body.isNotEmpty
+            ? response.body
+            : 'Internal Server Error',
         statusCode: response.statusCode,
         endpoint: endpoint,
       );
@@ -79,7 +89,7 @@ class VenuesService {
   /// Returns a list of venues that should be monitored
   Future<List<Venue>> getVenuesToMonitor() async {
     const endpoint = '/venue/GetVenuesToMonitor';
-    
+
     try {
       final response = await _client.get(
         Uri.parse('$_baseUrl$endpoint'),
@@ -88,7 +98,7 @@ class VenuesService {
 
       final data = _handleResponse(response, endpoint);
       final venuesData = data['venues'] as List<dynamic>?;
-      
+
       if (venuesData == null) {
         throw ApiException(
           message: 'Invalid response format: missing venues array',
@@ -101,10 +111,7 @@ class VenuesService {
           .toList();
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException(
-        message: 'Network error: $e',
-        endpoint: endpoint,
-      );
+      throw ApiException(message: 'Network error: $e', endpoint: endpoint);
     }
   }
 
@@ -114,10 +121,10 @@ class VenuesService {
     const endpoint = '/venue/GetVenues';
     final uri = Uri.parse('$_baseUrl$endpoint');
     debugPrint('🔍 DEBUG: uri $uri');
-    final uriWithQuery = city != null 
+    final uriWithQuery = city != null
         ? uri.replace(queryParameters: {'city': city})
         : uri;
-    
+
     try {
       final response = await _client.get(
         uriWithQuery,
@@ -126,7 +133,7 @@ class VenuesService {
 
       final data = _handleResponse(response, endpoint);
       final venuesData = data['venues'] as List<dynamic>?;
-      
+
       if (venuesData == null) {
         throw ApiException(
           message: 'Invalid response format: missing venues array',
@@ -139,17 +146,14 @@ class VenuesService {
           .toList();
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException(
-        message: 'Network error: $e',
-        endpoint: endpoint,
-      );
+      throw ApiException(message: 'Network error: $e', endpoint: endpoint);
     }
   }
 
   /// Get list of cities
   Future<List<City>> getCities() async {
     const endpoint = '/venue/GetCities';
-    
+
     try {
       final response = await _client.get(
         Uri.parse('$_baseUrl$endpoint'),
@@ -157,8 +161,10 @@ class VenuesService {
       );
 
       final data = _handleResponse(response, endpoint);
-      final citiesData = data['venues'] as List<dynamic>?; // API returns cities in 'venues' array
-      
+      final citiesData =
+          data['venues']
+              as List<dynamic>?; // API returns cities in 'venues' array
+
       if (citiesData == null) {
         throw ApiException(
           message: 'Invalid response format: missing venues/cities array',
@@ -171,17 +177,14 @@ class VenuesService {
           .toList();
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException(
-        message: 'Network error: $e',
-        endpoint: endpoint,
-      );
+      throw ApiException(message: 'Network error: $e', endpoint: endpoint);
     }
   }
 
   /// Get venue groups
   Future<List<VenueGroup>> getVenueGroups() async {
     const endpoint = '/venue/GetVenueGroups';
-    
+
     try {
       final response = await _client.get(
         Uri.parse('$_baseUrl$endpoint'),
@@ -190,7 +193,7 @@ class VenuesService {
 
       final data = _handleResponse(response, endpoint);
       final venueGroupsData = data['venueGroups'] as List<dynamic>?;
-      
+
       if (venueGroupsData == null) {
         throw ApiException(
           message: 'Invalid response format: missing venueGroups array',
@@ -203,10 +206,7 @@ class VenuesService {
           .toList();
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException(
-        message: 'Network error: $e',
-        endpoint: endpoint,
-      );
+      throw ApiException(message: 'Network error: $e', endpoint: endpoint);
     }
   }
 
@@ -214,9 +214,10 @@ class VenuesService {
   /// [groupId] - Required group ID
   Future<List<Venue>> getVenuesByGroup(int groupId) async {
     const endpoint = '/venue/GetVenuesByGroup';
-    final uri = Uri.parse('$_baseUrl$endpoint')
-        .replace(queryParameters: {'groupId': groupId.toString()});
-    
+    final uri = Uri.parse(
+      '$_baseUrl$endpoint',
+    ).replace(queryParameters: {'groupId': groupId.toString()});
+
     try {
       final response = await _client.get(
         uri,
@@ -225,7 +226,7 @@ class VenuesService {
 
       final data = _handleResponse(response, endpoint);
       final venuesData = data['venues'] as List<dynamic>?;
-      
+
       if (venuesData == null) {
         throw ApiException(
           message: 'Invalid response format: missing venues array',
@@ -238,10 +239,7 @@ class VenuesService {
           .toList();
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException(
-        message: 'Network error: $e',
-        endpoint: endpoint,
-      );
+      throw ApiException(message: 'Network error: $e', endpoint: endpoint);
     }
   }
 
@@ -249,9 +247,10 @@ class VenuesService {
   /// [venueId] - Required venue ID
   Future<List<Observation>> getOccupancyByVenue(int venueId) async {
     const endpoint = '/observations/GetOccupancyByVenue';
-    final uri = Uri.parse('$_baseUrl$endpoint')
-        .replace(queryParameters: {'venueId': venueId.toString()});
-    
+    final uri = Uri.parse(
+      '$_baseUrl$endpoint',
+    ).replace(queryParameters: {'venueId': venueId.toString()});
+
     try {
       final response = await _client.get(
         uri,
@@ -260,7 +259,7 @@ class VenuesService {
 
       final data = _handleResponse(response, endpoint);
       final observationsData = data['observations'] as List<dynamic>?;
-      
+
       if (observationsData == null) {
         throw ApiException(
           message: 'Invalid response format: missing observations array',
@@ -273,10 +272,7 @@ class VenuesService {
           .toList();
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException(
-        message: 'Network error: $e',
-        endpoint: endpoint,
-      );
+      throw ApiException(message: 'Network error: $e', endpoint: endpoint);
     }
   }
 
@@ -284,9 +280,10 @@ class VenuesService {
   /// [venueGroupId] - Required venue group ID
   Future<List<Observation>> getOccupancyByVenueGroup(int venueGroupId) async {
     const endpoint = '/observations/GetOccupancyByVenueGroup';
-    final uri = Uri.parse('$_baseUrl$endpoint')
-        .replace(queryParameters: {'venueGroupId': venueGroupId.toString()});
-    
+    final uri = Uri.parse(
+      '$_baseUrl$endpoint',
+    ).replace(queryParameters: {'venueGroupId': venueGroupId.toString()});
+
     try {
       final response = await _client.get(
         uri,
@@ -295,7 +292,7 @@ class VenuesService {
 
       final data = _handleResponse(response, endpoint);
       final observationsData = data['observations'] as List<dynamic>?;
-      
+
       if (observationsData == null) {
         throw ApiException(
           message: 'Invalid response format: missing observations array',
@@ -308,10 +305,7 @@ class VenuesService {
           .toList();
     } catch (e) {
       if (e is ApiException) rethrow;
-      throw ApiException(
-        message: 'Network error: $e',
-        endpoint: endpoint,
-      );
+      throw ApiException(message: 'Network error: $e', endpoint: endpoint);
     }
   }
 }

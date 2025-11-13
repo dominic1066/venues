@@ -32,8 +32,10 @@ class VenuesPage extends StatefulWidget {
 class _VenuesPageState extends State<VenuesPage> {
   final VenuesService _venuesService = VenuesService(enableDiagnostics: true);
   List<Venue> _venues = [];
+  List<Venue> _filteredVenues = [];
   List<VenueGroup> _venueGroups = [];
   List<City> _cities = [];
+  Set<String> _selectedCities = {};
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -67,6 +69,8 @@ class _VenuesPageState extends State<VenuesPage> {
         _venues = futures[0] as List<Venue>;
         _venueGroups = futures[1] as List<VenueGroup>;
         _cities = futures[2] as List<City>;
+        _filteredVenues = _venues; // Initially show all venues
+        _selectedCities.clear(); // No city filter initially
         _isLoading = false;
       });
     } catch (e) {
@@ -75,6 +79,36 @@ class _VenuesPageState extends State<VenuesPage> {
         _isLoading = false;
       });
     }
+  }
+
+  void _toggleCitySelection(String city) {
+    setState(() {
+      if (_selectedCities.contains(city)) {
+        _selectedCities.remove(city);
+      } else {
+        _selectedCities.add(city);
+      }
+      _updateFilteredVenues();
+    });
+  }
+
+  void _updateFilteredVenues() {
+    if (_selectedCities.isEmpty) {
+      // Show all venues if no cities are selected
+      _filteredVenues = _venues;
+    } else {
+      // Filter venues by selected cities
+      _filteredVenues = _venues.where((venue) => 
+        venue.city != null && _selectedCities.contains(venue.city)
+      ).toList();
+    }
+  }
+
+  void _clearCityFilter() {
+    setState(() {
+      _selectedCities.clear();
+      _updateFilteredVenues();
+    });
   }
 
   Future<void> _loadOccupancyForVenue(int venueId) async {
@@ -165,28 +199,12 @@ class _VenuesPageState extends State<VenuesPage> {
                                     itemCount: _cities.length,
                                     itemBuilder: (context, index) {
                                       final city = _cities[index];
-                                      return ListTile(
+                                      final isSelected = _selectedCities.contains(city.city);
+                                      return CheckboxListTile(
                                         title: Text(city.city),
-                                        onTap: () async {
-                                          try {
-                                            final venues = await _venuesService.getVenues(city: city.city);
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  content: Text('${city.city} has ${venues.length} venues'),
-                                                ),
-                                              );
-                                            }
-                                          } catch (e) {
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  content: Text('Error: $e'),
-                                                  backgroundColor: Colors.red,
-                                                ),
-                                              );
-                                            }
-                                          }
+                                        value: isSelected,
+                                        onChanged: (bool? value) {
+                                          _toggleCitySelection(city.city);
                                         },
                                       );
                                     },
@@ -254,16 +272,30 @@ class _VenuesPageState extends State<VenuesPage> {
                               children: [
                                 Padding(
                                   padding: const EdgeInsets.all(16.0),
-                                  child: Text(
-                                    'Venues (${_venues.length})',
-                                    style: Theme.of(context).textTheme.headlineSmall,
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          _selectedCities.isNotEmpty
+                                            ? 'Venues in ${_selectedCities.join(', ')} (${_filteredVenues.length}/${_venues.length})'
+                                            : 'All Venues (${_filteredVenues.length})',
+                                          style: Theme.of(context).textTheme.headlineSmall,
+                                        ),
+                                      ),
+                                      if (_selectedCities.isNotEmpty)
+                                        IconButton(
+                                          icon: const Icon(Icons.clear),
+                                          onPressed: _clearCityFilter,
+                                          tooltip: 'Show all venues',
+                                        ),
+                                    ],
                                   ),
                                 ),
                                 Expanded(
                                   child: ListView.builder(
-                                    itemCount: _venues.length,
+                                    itemCount: _filteredVenues.length,
                                     itemBuilder: (context, index) {
-                                      final venue = _venues[index];
+                                      final venue = _filteredVenues[index];
                                       return ListTile(
                                         title: Text(venue.name),
                                         subtitle: Text('ID: ${venue.id}${venue.city != null ? ' • ${venue.city}' : ''}'),
@@ -297,19 +329,54 @@ class _VenuesPageState extends State<VenuesPage> {
                               child: TabBarView(
                                 children: [
                                   // Venues tab
-                                  ListView.builder(
-                                    itemCount: _venues.length,
-                                    itemBuilder: (context, index) {
-                                      final venue = _venues[index];
-                                      return ListTile(
-                                        title: Text(venue.name),
-                                        subtitle: Text('ID: ${venue.id}${venue.city != null ? ' • ${venue.city}' : ''}'),
-                                        trailing: IconButton(
-                                          icon: const Icon(Icons.analytics),
-                                          onPressed: () => _loadOccupancyForVenue(venue.id),
+                                  Column(
+                                    children: [
+                                      if (_selectedCities.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                            decoration: BoxDecoration(
+                                              color: Theme.of(context).colorScheme.primaryContainer,
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    'Showing venues in ${_selectedCities.join(', ')}',
+                                                    style: TextStyle(
+                                                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                                    ),
+                                                  ),
+                                                ),
+                                                IconButton(
+                                                  icon: const Icon(Icons.clear),
+                                                  onPressed: _clearCityFilter,
+                                                  iconSize: 20,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
-                                      );
-                                    },
+                                      Expanded(
+                                        child: ListView.builder(
+                                          itemCount: _filteredVenues.length,
+                                          itemBuilder: (context, index) {
+                                            final venue = _filteredVenues[index];
+                                            return ListTile(
+                                              title: Text(venue.name),
+                                              subtitle: Text('ID: ${venue.id}${venue.city != null ? ' • ${venue.city}' : ''}'),
+                                              trailing: IconButton(
+                                                icon: const Icon(Icons.analytics),
+                                                onPressed: () => _loadOccupancyForVenue(venue.id),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                   // Groups tab
                                   ListView.builder(
@@ -348,28 +415,12 @@ class _VenuesPageState extends State<VenuesPage> {
                                     itemCount: _cities.length,
                                     itemBuilder: (context, index) {
                                       final city = _cities[index];
-                                      return ListTile(
+                                      final isSelected = _selectedCities.contains(city.city);
+                                      return CheckboxListTile(
                                         title: Text(city.city),
-                                        onTap: () async {
-                                          try {
-                                            final venues = await _venuesService.getVenues(city: city.city);
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  content: Text('${city.city} has ${venues.length} venues'),
-                                                ),
-                                              );
-                                            }
-                                          } catch (e) {
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  content: Text('Error: $e'),
-                                                  backgroundColor: Colors.red,
-                                                ),
-                                              );
-                                            }
-                                          }
+                                        value: isSelected,
+                                        onChanged: (bool? value) {
+                                          _toggleCitySelection(city.city);
                                         },
                                       );
                                     },

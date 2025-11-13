@@ -16,6 +16,34 @@
             "flutterMode": "release"
         },
         {
+            "name": "🖥️ Flutter App (Windows)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "flutterMode": "debug",
+            "deviceId": "windows"
+        },
+        {
+            "name": "🌐 Flutter App (Chrome)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "flutterMode": "debug",
+            "deviceId": "chrome"
+        },
+        {
+            "name": "🌐 Flutter Web (Debug Enhanced)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "flutterMode": "debug",
+            "deviceId": "chrome",
+            "args": [
+                "--web-renderer=html",
+                "--dart-define=FLUTTER_WEB_USE_SKIA=false"
+            ]
+        },
+        {
             "name": "📊 Test API with Diagnostics",
             "type": "dart",
             "request": "launch",

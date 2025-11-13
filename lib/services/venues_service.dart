@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/models.dart';
+import 'package:flutter/foundation.dart';
 
 class VenuesService {
   static const String _baseUrl = 'http://localhost:3000';
@@ -17,30 +18,30 @@ class VenuesService {
   /// Helper method to handle API responses - completely silent
   Map<String, dynamic> _handleResponse(http.Response response, String endpoint) {
     if (enableDiagnostics) {
-      print('🌐 API Call: $endpoint');
-      print('📊 Status: ${response.statusCode}');
+      debugPrint('🌐 API Call: $endpoint');
+      debugPrint('📊 Status: ${response.statusCode}');
       if (response.statusCode == 200) {
         try {
           final data = json.decode(response.body) as Map<String, dynamic>;
           if (data.containsKey('venues')) {
             final venues = data['venues'] as List?;
-            print('✅ Success: Found ${venues?.length ?? 0} venues');
+            debugPrint('✅ Success: Found ${venues?.length ?? 0} venues');
           } else if (data.containsKey('venueGroups')) {
             final groups = data['venueGroups'] as List?;
-            print('✅ Success: Found ${groups?.length ?? 0} venue groups');
+            debugPrint('✅ Success: Found ${groups?.length ?? 0} venue groups');
           } else if (data.containsKey('observations')) {
             final observations = data['observations'] as List?;
-            print('✅ Success: Found ${observations?.length ?? 0} observations');
+            debugPrint('✅ Success: Found ${observations?.length ?? 0} observations');
           } else {
-            print('✅ Success: Data received');
+            debugPrint('✅ Success: Data received');
           }
         } catch (e) {
-          print('✅ Success: Response received (parsing will continue)');
+          debugPrint('✅ Success: Response received (parsing will continue)');
         }
       } else {
-        print('❌ Error: HTTP ${response.statusCode}');
+        debugPrint('❌ Error: HTTP ${response.statusCode}');
       }
-      print(''); // Clean spacing
+      debugPrint(''); // Clean spacing
     }
 
     if (response.statusCode == 200) {
@@ -112,6 +113,7 @@ class VenuesService {
   Future<List<Venue>> getVenues({String? city}) async {
     const endpoint = '/venue/GetVenues';
     final uri = Uri.parse('$_baseUrl$endpoint');
+    debugPrint('🔍 DEBUG: uri $uri');
     final uriWithQuery = city != null 
         ? uri.replace(queryParameters: {'city': city})
         : uri;

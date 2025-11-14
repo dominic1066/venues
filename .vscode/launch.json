@@ -40,6 +40,22 @@
             "deviceId": "00008110-0016151A0A90401E"
         },
         {
+            "name": "🚀 Flutter App (iPhone - Release)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "flutterMode": "release",
+            "deviceId": "00008110-0016151A0A90401E"
+        },
+        {
+            "name": "📱 Flutter App (iPhone 7)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "flutterMode": "debug",
+            "deviceId": "d84e7abe4eba7fd1db9670ed72c09671fe673abd"
+        },
+        {
             "name": "🌐 Flutter App (Chrome)",
             "type": "dart",
             "request": "launch",

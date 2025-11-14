@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'services/venues_service.dart';
 import 'models/models.dart';
+import 'package:intl/intl.dart';
 
 void main() {
   runApp(const MyApp());
@@ -111,13 +112,132 @@ class _VenuesPageState extends State<VenuesPage> {
     });
   }
 
+  Widget _buildVenuesList() {
+    return ListView.builder(
+      itemCount: _filteredVenues.length,
+      itemBuilder: (context, index) {
+        final venue = _filteredVenues[index];
+        return ListTile(
+          title: Text(venue.name),
+          subtitle: Text('${venue.city != null ? '${venue.city}' : ''}, Last Obs: ${venue.lastObservation != null ? DateFormat('dd/MM/yyyy HH:mm').format(venue.lastObservation!.toLocal()) : 'No known observations'}'),
+          trailing: Tooltip(
+            message: _getObservationStatusTooltip(venue.lastObservation),
+            child: CircleAvatar(
+              radius: 8,
+              backgroundColor: _getObservationStatusColor(venue.lastObservation),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildCitiesList() {
+    return ListView.builder(
+      itemCount: _cities.length,
+      itemBuilder: (context, index) {
+        final city = _cities[index];
+        final isSelected = _selectedCities.contains(city.city);
+        return CheckboxListTile(
+          title: Text(city.city),
+          value: isSelected,
+          onChanged: (bool? value) {
+            _toggleCitySelection(city.city);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildGroupsList() {
+    return ListView.builder(
+      itemCount: _venueGroups.length,
+      itemBuilder: (context, index) {
+        final group = _venueGroups[index];
+        return ListTile(
+          title: Text(group.name),
+          subtitle: Text('ID: ${group.id}'),
+          onTap: () async {
+            try {
+              final venues = await _venuesService.getVenuesByGroup(group.id);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Group "${group.name}" has ${venues.length} venues'),
+                  ),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.headlineSmall,
+      ),
+    );
+  }
+
+  Color _getObservationStatusColor(DateTime? lastObservation) {
+    if (lastObservation == null) {
+      return Colors.red; // No observations
+    }
+    
+    final now = DateTime.now().toUtc();
+    final observationUtc = lastObservation.toUtc();
+    final difference = now.difference(observationUtc);
+    
+    // Debug output
+    debugPrint('Venue observation: ${observationUtc.toString()}, Now: ${now.toString()}, Minutes ago: ${difference.inMinutes}');
+    
+    if (difference.inMinutes <= 30) {
+      return Colors.green; // Recent observation (within 30 minutes)
+    } else {
+      return Colors.amber; // Old observation (older than 30 minutes)
+    }
+  }
+
+  String _getObservationStatusTooltip(DateTime? lastObservation) {
+    if (lastObservation == null) {
+      return 'No observations recorded';
+    }
+    
+    final now = DateTime.now().toUtc();
+    final observationUtc = lastObservation.toUtc();
+    final difference = now.difference(observationUtc);
+    
+    if (difference.inMinutes <= 30) {
+      return 'Recent observation (within 30 minutes)';
+    } else {
+      return 'Older observation (${difference.inMinutes} minutes ago)';
+    }
+  }
+
   Future<void> _loadOccupancyForVenue(int venueId) async {
     try {
       final observations = await _venuesService.getOccupancyByVenue(venueId);
+      observations.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      final lastTimestamp = observations.isNotEmpty ? DateFormat('yyyy-MM-dd HH:mm').format(observations.last.timestamp) : 'N/A';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Found ${observations.length} observations for venue $venueId'),
+            // content: Text('Found ${observations.length} observations for venue $venueId'),
+            content: Text('Last observation at $lastTimestamp'),
           ),
         );
       }
@@ -177,263 +297,139 @@ class _VenuesPageState extends State<VenuesPage> {
                     final isWideScreen = constraints.maxWidth > 600;
                     
                     if (isWideScreen) {
+                      return wideScreenLayout();
                       // Wide screen: show columns side by side
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Cities column
-                          Expanded(
-                            flex: 1,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Text(
-                                    'Cities (${_cities.length})',
-                                    style: Theme.of(context).textTheme.headlineSmall,
-                                  ),
-                                ),
-                                Expanded(
-                                  child: ListView.builder(
-                                    itemCount: _cities.length,
-                                    itemBuilder: (context, index) {
-                                      final city = _cities[index];
-                                      final isSelected = _selectedCities.contains(city.city);
-                                      return CheckboxListTile(
-                                        title: Text(city.city),
-                                        value: isSelected,
-                                        onChanged: (bool? value) {
-                                          _toggleCitySelection(city.city);
-                                        },
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const VerticalDivider(width: 1),
-                          // Groups column
-                          Expanded(
-                            flex: 1,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Text(
-                                    'Groups (${_venueGroups.length})',
-                                    style: Theme.of(context).textTheme.headlineSmall,
-                                  ),
-                                ),
-                                Expanded(
-                                  child: ListView.builder(
-                                    itemCount: _venueGroups.length,
-                                    itemBuilder: (context, index) {
-                                      final group = _venueGroups[index];
-                                      return ListTile(
-                                        title: Text(group.name),
-                                        subtitle: Text('ID: ${group.id}'),
-                                        onTap: () async {
-                                          try {
-                                            final venues = await _venuesService.getVenuesByGroup(group.id);
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  content: Text('Group "${group.name}" has ${venues.length} venues'),
-                                                ),
-                                              );
-                                            }
-                                          } catch (e) {
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  content: Text('Error: $e'),
-                                                  backgroundColor: Colors.red,
-                                                ),
-                                              );
-                                            }
-                                          }
-                                        },
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const VerticalDivider(width: 1),
-                          // Venues column
-                          Expanded(
-                            flex: 2,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(16.0),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          _selectedCities.isNotEmpty
-                                            ? 'Venues in ${_selectedCities.join(', ')} (${_filteredVenues.length}/${_venues.length})'
-                                            : 'All Venues (${_filteredVenues.length})',
-                                          style: Theme.of(context).textTheme.headlineSmall,
-                                        ),
-                                      ),
-                                      if (_selectedCities.isNotEmpty)
-                                        IconButton(
-                                          icon: const Icon(Icons.clear),
-                                          onPressed: _clearCityFilter,
-                                          tooltip: 'Show all venues',
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                Expanded(
-                                  child: ListView.builder(
-                                    itemCount: _filteredVenues.length,
-                                    itemBuilder: (context, index) {
-                                      final venue = _filteredVenues[index];
-                                      return ListTile(
-                                        title: Text(venue.name),
-                                        subtitle: Text('ID: ${venue.id}${venue.city != null ? ' • ${venue.city}' : ''}'),
-                                        trailing: IconButton(
-                                          icon: const Icon(Icons.analytics),
-                                          onPressed: () => _loadOccupancyForVenue(venue.id),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      );
                     } else {
-                      // Narrow screen: show tabs
-                      return DefaultTabController(
-                        length: 3,
-                        child: Column(
-                          children: [
-                            const TabBar(
-                              tabs: [
-                                Tab(text: 'Venues'),
-                                Tab(text: 'Groups'),
-                                Tab(text: 'Cities'),
-                              ],
-                            ),
-                            Expanded(
-                              child: TabBarView(
-                                children: [
-                                  // Venues tab
-                                  Column(
-                                    children: [
-                                      if (_selectedCities.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.all(8.0),
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                            decoration: BoxDecoration(
-                                              color: Theme.of(context).colorScheme.primaryContainer,
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Expanded(
-                                                  child: Text(
-                                                    'Showing venues in ${_selectedCities.join(', ')}',
-                                                    style: TextStyle(
-                                                      color: Theme.of(context).colorScheme.onPrimaryContainer,
-                                                    ),
-                                                  ),
-                                                ),
-                                                IconButton(
-                                                  icon: const Icon(Icons.clear),
-                                                  onPressed: _clearCityFilter,
-                                                  iconSize: 20,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      Expanded(
-                                        child: ListView.builder(
-                                          itemCount: _filteredVenues.length,
-                                          itemBuilder: (context, index) {
-                                            final venue = _filteredVenues[index];
-                                            return ListTile(
-                                              title: Text(venue.name),
-                                              subtitle: Text('ID: ${venue.id}${venue.city != null ? ' • ${venue.city}' : ''}'),
-                                              trailing: IconButton(
-                                                icon: const Icon(Icons.analytics),
-                                                onPressed: () => _loadOccupancyForVenue(venue.id),
-                                              ),
-                                            );
-                                          },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  // Groups tab
-                                  ListView.builder(
-                                    itemCount: _venueGroups.length,
-                                    itemBuilder: (context, index) {
-                                      final group = _venueGroups[index];
-                                      return ListTile(
-                                        title: Text(group.name),
-                                        subtitle: Text('ID: ${group.id}'),
-                                        onTap: () async {
-                                          try {
-                                            final venues = await _venuesService.getVenuesByGroup(group.id);
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  content: Text('Group "${group.name}" has ${venues.length} venues'),
-                                                ),
-                                              );
-                                            }
-                                          } catch (e) {
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(context).showSnackBar(
-                                                SnackBar(
-                                                  content: Text('Error: $e'),
-                                                  backgroundColor: Colors.red,
-                                                ),
-                                              );
-                                            }
-                                          }
-                                        },
-                                      );
-                                    },
-                                  ),
-                                  // Cities tab
-                                  ListView.builder(
-                                    itemCount: _cities.length,
-                                    itemBuilder: (context, index) {
-                                      final city = _cities[index];
-                                      final isSelected = _selectedCities.contains(city.city);
-                                      return CheckboxListTile(
-                                        title: Text(city.city),
-                                        value: isSelected,
-                                        onChanged: (bool? value) {
-                                          _toggleCitySelection(city.city);
-                                        },
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
+                      return narrowScreenLayout();
                     }
                   },
                 ),
+    );
+  }
+
+  Widget wideScreenLayout(){
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Cities column
+        Expanded(
+          flex: 1,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSectionHeader('Cities (${_cities.length})'),
+              Expanded(child: _buildCitiesList()),
+            ],
+          ),
+        ),
+        const VerticalDivider(width: 1),
+        // Groups column
+        Expanded(
+          flex: 1,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSectionHeader('Groups (${_venueGroups.length})'),
+              Expanded(child: _buildGroupsList()),
+            ],
+          ),
+        ),
+        const VerticalDivider(width: 1),
+        // Venues column
+        Expanded(
+          flex: 2,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _selectedCities.isNotEmpty
+                          ? 'Venues in ${_selectedCities.join(', ')} (${_filteredVenues.length}/${_venues.length})'
+                          : 'All Venues (${_filteredVenues.length})',
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                    ),
+                    if (_selectedCities.isNotEmpty)
+                      IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: _clearCityFilter,
+                        tooltip: 'Show all venues',
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(child: _buildVenuesList()),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget narrowScreenLayout(){
+    // Narrow screen: show tabs
+    return DefaultTabController(
+      length: 3,
+      child: Column(
+        children: [
+          const TabBar(
+            tabs: [
+              Tab(text: 'Venues'),
+              Tab(text: 'Groups'),
+              Tab(text: 'Cities'),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                // Venues tab
+                Column(
+                  children: [
+                    if (_selectedCities.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Showing venues in ${_selectedCities.join(', ')}',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: _clearCityFilter,
+                                iconSize: 20,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    Expanded(child: _buildVenuesList()),
+                  ],
+                ),
+                // Groups tab
+                _buildGroupsList(),
+                // Cities tab
+                _buildCitiesList(),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

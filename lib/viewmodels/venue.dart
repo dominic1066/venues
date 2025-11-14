@@ -7,6 +7,7 @@ class Venue {
   final double? longitude;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? lastObservation;
 
   Venue({
     required this.id,
@@ -17,6 +18,7 @@ class Venue {
     this.longitude,
     required this.createdAt,
     required this.updatedAt,
+    this.lastObservation,
   });
 
   factory Venue.fromJson(Map<String, dynamic> json) {
@@ -29,6 +31,7 @@ class Venue {
       longitude: json['longitude']?.toDouble(),
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
+      lastObservation: json['last_observation'] != null ? DateTime.parse(json['last_observation']) : null,
     );
   }
 
@@ -42,6 +45,7 @@ class Venue {
       'longitude': longitude,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
+      if (lastObservation != null) 'last_observation': lastObservation!.toIso8601String(),
     };
   }
 }

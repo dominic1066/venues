@@ -4,6 +4,7 @@ class Venue {
   final String? city;
   final double? latitude;
   final double? longitude;
+  final DateTime? lastObservation;
 
   const Venue({
     required this.id,
@@ -11,15 +12,17 @@ class Venue {
     this.city,
     this.latitude,
     this.longitude,
+    this.lastObservation,
   });
 
   factory Venue.fromJson(Map<String, dynamic> json) {
     return Venue(
-      id: (json['id'] ?? json['Id']) as int, // Handle both 'id' and 'Id'
+      id: (json['Id'] ?? json['Id']) as int, // Handle both 'id' and 'Id'
       name: json['name'] as String,
       city: json['city'] as String?,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
+      lastObservation: json['last_observation'] != null ? DateTime.parse(json['last_observation']) : null,
     );
   }
 
@@ -30,6 +33,7 @@ class Venue {
       if (city != null) 'city': city,
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
+      if (lastObservation != null) 'last_observation': lastObservation!.toIso8601String(),
     };
   }
 

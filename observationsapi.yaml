@@ -1,0 +1,395 @@
+openapi: 3.0.3
+info:
+  title: ObservationsNode API (venue / observations / transit)
+  version: 1.0.0
+  description: API surface exposed by routes/venue.js, routes/observations.js, and routes/transit.js
+servers:
+  - url: http://localhost:3000
+paths:
+  /venue/GetVenuesToMonitor:
+    get:
+      summary: Get venues to monitor
+      description: Returns a list of venues that should be monitored. No parameters.
+      responses:
+        '200':
+          description: JSON array of venues encoded as text/plain
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"venues":[{"id":1,"name":"Venue A"},{"id":2,"name":"Venue B"}]}'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /venue/GetVenues:
+    get:
+      summary: Get venues (optionally by city)
+      parameters:
+        - name: city
+          in: query
+          description: Optional city filter (string)
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: venues array wrapped in object (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"venues":[{"id":1,"name":"Venue A","city":"Seattle"}]}'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /venue/GetCities:
+    get:
+      summary: Get list of cities
+      responses:
+        '200':
+          description: list of cities (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"venues":[{"city":"Seattle"},{"city":"Portland"}]}'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+  /venue/GetVenueGroups:
+    get:
+      summary: Get venue groups
+      responses:
+        '200':
+          description: venue groups (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"venueGroups":[{"id":1,"name":"Group A"}]}'
+        '500':
+          description: Database error
+  /venue/GetVenuesByGroup:
+    get:
+      summary: Get venues by group
+      parameters:
+        - name: groupId
+          in: query
+          description: Group id (integer) - required
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: venues belonging to group (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"venues":[{"id":3,"name":"Venue C","groupId":1}]}'
+        '400':
+          description: Missing groupId parameter
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Missing groupId parameter'
+        '500':
+          description: Database error
+  /observations/GetOccupancyByVenue:
+    get:
+      summary: Get occupancy/observations for a venue
+      parameters:
+        - name: venueId
+          in: query
+          description: Venue id (integer) - required
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: observation records for the venue (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"observations":[{"timestamp":"2025-11-09T12:00:00Z","count":42}]}'
+        '400':
+          description: Missing venueId parameter
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Missing venueId parameter'
+        '500':
+          description: Database error
+  /observations/GetOccupancyByVenueGroup:
+    get:
+      summary: Get occupancy for a venue group
+      parameters:
+        - name: venueGroupId
+          in: query
+          description: Venue group id (integer) - required
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: observations aggregated by venue group (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"observations":[{"venueId":1,"timestamp":"2025-11-09T12:00:00Z","count":42}]}'
+        '400':
+          description: Missing venueGroupId parameter
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Missing venueGroupId parameter'
+        '500':
+          description: Database error
+  /transit/GetTransitTypes:
+    get:
+      summary: Get transit types
+      description: Returns a list of available transit route types
+      responses:
+        '200':
+          description: JSON array of transit types encoded as text/plain
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"types":[{"id":0,"name":"Tram"},{"id":1,"name":"Subway"}]}'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/GetTransitRoutes:
+    get:
+      summary: Get transit routes
+      description: Returns a list of all transit routes
+      responses:
+        '200':
+          description: JSON array of transit routes encoded as text/plain
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"routes":[{"routeId":"R1","cityId":1,"shortName":"1","longName":"Downtown Loop"}]}'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/GetTransitCities:
+    get:
+      summary: Get transit cities
+      description: Returns a list of cities that have transit data
+      responses:
+        '200':
+          description: JSON array of cities encoded as text/plain
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"cities":[{"id":1,"name":"Seattle"},{"id":2,"name":"Portland"}]}'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/SubmitRoute:
+    post:
+      summary: Submit a new transit route
+      description: Creates or updates a transit route with validation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteSubmission'
+      responses:
+        '200':
+          description: Route successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "routeId is required"
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/MonitorRoute:
+    post:
+      summary: Monitor a transit route
+      description: Adds a route to the monitoring list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MonitorRouteRequest'
+      responses:
+        '200':
+          description: Route successfully added to monitoring
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "routeId is required"
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/UnmonitorRoute:
+    post:
+      summary: Unmonitor a transit route
+      description: Removes a route from the monitoring list
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MonitorRouteRequest'
+      responses:
+        '200':
+          description: Route successfully removed from monitoring
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "routeId is required"
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+components:
+  schemas:
+    Venue:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        city:
+          type: string
+    VenueGroup:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+    Observation:
+      type: object
+      properties:
+        venueId:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+        count:
+          type: integer
+    RouteSubmission:
+      type: object
+      required:
+        - routeId
+        - cityId
+        - shortName
+      properties:
+        routeId:
+          type: string
+          description: Unique identifier for the route
+        cityId:
+          type: integer
+          description: ID of the city this route belongs to
+        shortName:
+          type: string
+          description: Short name/code for the route
+        longName:
+          type: string
+          description: Long descriptive name for the route
+        routeType:
+          type: integer
+          description: Type of transit route
+        agencyId:
+          type: string
+          description: ID of the transit agency
+    MonitorRouteRequest:
+      type: object
+      required:
+        - routeId
+      properties:
+        routeId:
+          type: string
+          description: Unique identifier for the route to monitor/unmonitor

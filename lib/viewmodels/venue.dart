@@ -2,46 +2,45 @@ class Venue {
   final String id;
   final String name;
   final String address;
+  final String? city;
   final String? description;
   final double? latitude;
   final double? longitude;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+  final DateTime? lastObservation;
 
   Venue({
     required this.id,
     required this.name,
     required this.address,
+    this.city,
     this.description,
     this.latitude,
     this.longitude,
-    required this.createdAt,
-    required this.updatedAt,
+    this.lastObservation,
   });
 
   factory Venue.fromJson(Map<String, dynamic> json) {
     return Venue(
-      id: json['id'],
+      id: json['Id'],
       name: json['name'],
       address: json['address'],
-      description: json['description'],
+      city: json['city']?.toString(),
+      description: json['description']?.toString(),
       latitude: json['latitude']?.toDouble(),
       longitude: json['longitude']?.toDouble(),
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      lastObservation: json['last_observation'] != null ? DateTime.parse(json['last_observation']) : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
+      'Id': id,
       'name': name,
       'address': address,
+      'city': city,
       'description': description,
       'latitude': latitude,
       'longitude': longitude,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
-    };
+      'last_observation': lastObservation?.toIso8601String(),};
   }
 }

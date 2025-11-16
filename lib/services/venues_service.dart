@@ -4,9 +4,9 @@ import '../models/models.dart';
 import 'package:flutter/foundation.dart';
 
 class VenuesService {
-  // static const String _baseUrl = 'http://localhost:3000';
-  static const String _baseUrl =
-      'https://edgy-nonluminescent-kymani.ngrok-free.dev';
+  static const String _baseUrl = 'http://localhost:3000';
+  // static const String _baseUrl =
+  //     'https://edgy-nonluminescent-kymani.ngrok-free.dev';
   final http.Client _client;
   final bool enableDiagnostics;
 

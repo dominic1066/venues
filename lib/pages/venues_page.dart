@@ -395,6 +395,14 @@ class _VenuesPageState extends State<VenuesPage> {
                 Navigator.pushReplacementNamed(context, '/transit');
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.map),
+              title: const Text('Map'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.pushReplacementNamed(context, '/map');
+              },
+            ),
           ],
         ),
       ),

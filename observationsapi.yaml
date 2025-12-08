@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
-  title: ObservationsNode API (venue / observations / transit)
+  title: ObservationsNode API (venue / observations / transit / gtfs)
   version: 1.0.0
-  description: API surface exposed by routes/venue.js, routes/observations.js, and routes/transit.js
+  description: API surface exposed by routes/venue.js, routes/observations.js, routes/transit.js, and routes/gtfs.js
 servers:
   - url: http://localhost:3000
 paths:
@@ -218,6 +218,145 @@ paths:
               schema:
                 type: string
                 example: 'Database error: <message>'
+  /transit/GetRoutesToMonitor:
+    get:
+      summary: Get routes to monitor
+      description: Returns a list of transit routes that are being monitored
+      responses:
+        '200':
+          description: JSON array of monitored routes encoded as text/plain
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"routes":[{"id":1,"routeId":"R1","cityId":1,"shortName":"1"}]}'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/GetLiveTrips:
+    get:
+      summary: Get live trips for a city
+      description: Returns live transit trips for a specific city
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID (integer) - required
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Live trip observations (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"observations":[{"tripId":"123","routeId":"1","lat":47.6,"lon":-122.3}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"cityId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/GetShapeForTrip:
+    get:
+      summary: Get shape data for a specific trip
+      description: Returns the geographic shape/path for a transit trip
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID (integer) - required
+          required: true
+          schema:
+            type: integer
+        - name: tripId
+          in: query
+          description: Trip ID (string) - required
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Trip shape data (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"shape":[{"lat":47.6,"lon":-122.3,"sequence":1}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"tripId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/GetObservationsForTrip:
+    get:
+      summary: Get observations for a specific trip
+      description: Returns all recorded observations for a transit trip
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID (integer) - required
+          required: true
+          schema:
+            type: integer
+        - name: tripId
+          in: query
+          description: Trip ID (string) - required
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Trip observations (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"shape":[{"lat":47.6,"lon":-122.3,"timestamp":"2025-12-07T10:30:00Z"}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"tripId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
   /transit/SubmitRoute:
     post:
       summary: Submit a new transit route
@@ -256,6 +395,44 @@ paths:
               schema:
                 type: string
                 example: 'Database error: <message>'
+  /transit/SubmitCalendar:
+    post:
+      summary: Submit a service calendar
+      description: Creates or updates a service calendar that defines which days a transit service operates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarSubmission'
+      responses:
+        '200':
+          description: Calendar successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "serviceId is required"
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
   /transit/MonitorRoute:
     post:
       summary: Monitor a transit route
@@ -286,7 +463,7 @@ paths:
                 properties:
                   error:
                     type: string
-                    example: "routeId is required"
+                    example: "id is required"
         '500':
           description: Database error
           content:
@@ -324,7 +501,488 @@ paths:
                 properties:
                   error:
                     type: string
-                    example: "routeId is required"
+                    example: "id is required"
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /gtfs/SubmitAgency:
+    post:
+      summary: Submit GTFS agency data
+      description: Creates or updates a transit agency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GTFSAgency'
+      responses:
+        '200':
+          description: Agency successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /gtfs/SubmitStop:
+    post:
+      summary: Submit GTFS stop data
+      description: Creates or updates a transit stop
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GTFSStop'
+      responses:
+        '200':
+          description: Stop successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /gtfs/SubmitTrip:
+    post:
+      summary: Submit GTFS trip data
+      description: Creates or updates a transit trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GTFSTrip'
+      responses:
+        '200':
+          description: Trip successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /gtfs/SubmitStopTime:
+    post:
+      summary: Submit GTFS stop time data
+      description: Creates or updates a stop time for a trip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GTFSStopTime'
+      responses:
+        '200':
+          description: Stop time successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /gtfs/SubmitShape:
+    post:
+      summary: Submit GTFS shape data
+      description: Creates or updates a shape point for a route
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GTFSShape'
+      responses:
+        '200':
+          description: Shape successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /gtfs/SubmitCalendarDate:
+    post:
+      summary: Submit GTFS calendar date data
+      description: Creates or updates calendar exceptions (dates when service differs from normal)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GTFSCalendarDate'
+      responses:
+        '200':
+          description: Calendar date successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /gtfs/SubmitFareAttribute:
+    post:
+      summary: Submit GTFS fare attribute data
+      description: Creates or updates fare information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GTFSFareAttribute'
+      responses:
+        '200':
+          description: Fare attribute successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /gtfs/SubmitFareRule:
+    post:
+      summary: Submit GTFS fare rule data
+      description: Creates or updates fare rules (how fares apply to routes/zones)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GTFSFareRule'
+      responses:
+        '200':
+          description: Fare rule successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /gtfs/SubmitFeedInfo:
+    post:
+      summary: Submit GTFS feed info data
+      description: Creates or updates feed metadata information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GTFSFeedInfo'
+      responses:
+        '200':
+          description: Feed info successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /gtfs/SubmitFrequency:
+    post:
+      summary: Submit GTFS frequency data
+      description: Creates or updates headway-based service (frequency of service)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GTFSFrequency'
+      responses:
+        '200':
+          description: Frequency successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /gtfs/SubmitPathway:
+    post:
+      summary: Submit GTFS pathway data
+      description: Creates or updates pathways linking locations within stations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GTFSPathway'
+      responses:
+        '200':
+          description: Pathway successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /gtfs/SubmitTransfer:
+    post:
+      summary: Submit GTFS transfer data
+      description: Creates or updates transfer rules between stops
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GTFSTransfer'
+      responses:
+        '200':
+          description: Transfer successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /gtfs/SubmitTranslation:
+    post:
+      summary: Submit GTFS translation data
+      description: Creates or updates translations for GTFS fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GTFSTranslation'
+      responses:
+        '200':
+          description: Translation successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
         '500':
           description: Database error
           content:
@@ -385,11 +1043,530 @@ components:
         agencyId:
           type: string
           description: ID of the transit agency
+    CalendarSubmission:
+      type: object
+      required:
+        - serviceId
+        - cityId
+        - monday
+        - tuesday
+        - wednesday
+        - thursday
+        - friday
+        - saturday
+        - sunday
+        - startDate
+        - endDate
+      properties:
+        serviceId:
+          type: string
+          description: Unique identifier for the service calendar
+        cityId:
+          type: integer
+          description: ID of the city this calendar belongs to
+        monday:
+          type: boolean
+          description: Service operates on Mondays
+        tuesday:
+          type: boolean
+          description: Service operates on Tuesdays
+        wednesday:
+          type: boolean
+          description: Service operates on Wednesdays
+        thursday:
+          type: boolean
+          description: Service operates on Thursdays
+        friday:
+          type: boolean
+          description: Service operates on Fridays
+        saturday:
+          type: boolean
+          description: Service operates on Saturdays
+        sunday:
+          type: boolean
+          description: Service operates on Sundays
+        startDate:
+          type: string
+          format: date
+          description: Start date of service (YYYY-MM-DD)
+        endDate:
+          type: string
+          format: date
+          description: End date of service (YYYY-MM-DD)
     MonitorRouteRequest:
       type: object
       required:
-        - routeId
+        - id
       properties:
+        id:
+          type: integer
+          description: Database ID of the route to monitor/unmonitor
+    GTFSAgency:
+      type: object
+      required:
+        - cityId
+        - agencyId
+        - agencyName
+        - agencyUrl
+        - agencyTimezone
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city this agency belongs to
+        agencyId:
+          type: string
+          description: Unique identifier for the agency
+        agencyName:
+          type: string
+          description: Full name of the transit agency
+        agencyUrl:
+          type: string
+          format: uri
+          description: URL of the transit agency
+        agencyTimezone:
+          type: string
+          description: Timezone where the agency is located
+        agencyLang:
+          type: string
+          description: Primary language used by this agency
+        agencyPhone:
+          type: string
+          description: Phone number for the agency
+        agencyFareUrl:
+          type: string
+          format: uri
+          description: URL of a web page that allows riders to purchase tickets
+        agencyEmail:
+          type: string
+          format: email
+          description: Email address for the agency
+    GTFSStop:
+      type: object
+      required:
+        - cityId
+        - stopId
+        - stopName
+        - stopLat
+        - stopLon
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city this stop belongs to
+        stopId:
+          type: string
+          description: Unique identifier for the stop
+        stopCode:
+          type: string
+          description: Short text or number that identifies the stop
+        stopName:
+          type: string
+          description: Name of the stop
+        stopDesc:
+          type: string
+          description: Description of the stop
+        stopLat:
+          type: number
+          description: Latitude of the stop
+        stopLon:
+          type: number
+          description: Longitude of the stop
+        zoneId:
+          type: string
+          description: Identifies the fare zone for a stop
+        stopUrl:
+          type: string
+          format: uri
+          description: URL of a web page about the stop
+        locationType:
+          type: integer
+          enum: [0, 1, 2, 3, 4]
+          description: Type of location (0=stop, 1=station, 2=entrance/exit, 3=generic node, 4=boarding area)
+        parentStation:
+          type: string
+          description: For locations that are part of a station, the stop_id of the station
+        stopTimezone:
+          type: string
+          description: Timezone of the stop
+        wheelchairBoarding:
+          type: integer
+          enum: [0, 1, 2]
+          description: Wheelchair accessibility (0=no info, 1=accessible, 2=not accessible)
+    GTFSTrip:
+      type: object
+      required:
+        - cityId
+        - routeId
+        - serviceId
+        - tripId
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city this trip belongs to
         routeId:
           type: string
-          description: Unique identifier for the route to monitor/unmonitor
+          description: Route ID this trip belongs to
+        serviceId:
+          type: string
+          description: Service ID indicating which days the trip runs
+        tripId:
+          type: string
+          description: Unique identifier for the trip
+        tripHeadsign:
+          type: string
+          description: Text that appears on signage identifying the trip's destination
+        tripShortName:
+          type: string
+          description: Public facing text used to identify the trip
+        directionId:
+          type: integer
+          enum: [0, 1]
+          description: Direction of travel (0 or 1)
+        blockId:
+          type: string
+          description: Block ID for the trip
+        shapeId:
+          type: string
+          description: Shape ID that defines the path the vehicle takes
+        wheelchairAccessible:
+          type: integer
+          enum: [0, 1, 2]
+          description: Wheelchair accessibility (0=no info, 1=accessible, 2=not accessible)
+        bikesAllowed:
+          type: integer
+          enum: [0, 1, 2]
+          description: Bikes allowed (0=no info, 1=allowed, 2=not allowed)
+    GTFSStopTime:
+      type: object
+      required:
+        - cityId
+        - tripId
+        - arrivalTime
+        - departureTime
+        - stopId
+        - stopSequence
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city this stop time belongs to
+        tripId:
+          type: string
+          description: Trip ID this stop time belongs to
+        arrivalTime:
+          type: string
+          description: Arrival time at the stop (HH:MM:SS format)
+        departureTime:
+          type: string
+          description: Departure time from the stop (HH:MM:SS format)
+        stopId:
+          type: string
+          description: Stop ID where the vehicle stops
+        stopSequence:
+          type: integer
+          description: Order of stops for a particular trip
+        stopHeadsign:
+          type: string
+          description: Text that appears on signage at this stop
+        pickupType:
+          type: integer
+          enum: [0, 1, 2, 3]
+          description: Pickup method (0=regular, 1=none, 2=phone agency, 3=coordinate with driver)
+        dropOffType:
+          type: integer
+          enum: [0, 1, 2, 3]
+          description: Drop off method (0=regular, 1=none, 2=phone agency, 3=coordinate with driver)
+        shapeDistTraveled:
+          type: number
+          description: Distance from the first shape point
+        timepoint:
+          type: integer
+          enum: [0, 1]
+          description: Whether times are exact (1) or approximate (0)
+    GTFSShape:
+      type: object
+      required:
+        - cityId
+        - shapeId
+        - shapePtLat
+        - shapePtLon
+        - shapePtSequence
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city this shape belongs to
+        shapeId:
+          type: string
+          description: Unique identifier for the shape
+        shapePtLat:
+          type: number
+          description: Latitude of shape point
+        shapePtLon:
+          type: number
+          description: Longitude of shape point
+        shapePtSequence:
+          type: integer
+          description: Sequence order of the shape point
+        shapeDistTraveled:
+          type: number
+          description: Distance traveled along the shape from the first point
+    GTFSCalendarDate:
+      type: object
+      required:
+        - cityId
+        - serviceId
+        - date
+        - exceptionType
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city this calendar date belongs to
+        serviceId:
+          type: string
+          description: Service ID to which the exception applies
+        date:
+          type: string
+          format: date
+          description: Date when service exception occurs (YYYY-MM-DD)
+        exceptionType:
+          type: integer
+          enum: [1, 2]
+          description: Type of exception (1=service added, 2=service removed)
+    GTFSFareAttribute:
+      type: object
+      required:
+        - cityId
+        - fareId
+        - price
+        - currencyType
+        - paymentMethod
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city this fare belongs to
+        fareId:
+          type: string
+          description: Unique identifier for the fare
+        price:
+          type: number
+          description: Fare price
+        currencyType:
+          type: string
+          minLength: 3
+          maxLength: 3
+          description: ISO 4217 currency code
+        paymentMethod:
+          type: integer
+          enum: [0, 1]
+          description: When payment is made (0=on board, 1=before boarding)
+        transfers:
+          type: integer
+          enum: [0, 1, 2]
+          description: Number of transfers permitted (0=none, 1=once, 2=twice, null=unlimited)
+        agencyId:
+          type: string
+          description: Agency ID for the fare
+        transferDuration:
+          type: integer
+          description: Length of time in seconds before a transfer expires
+    GTFSFareRule:
+      type: object
+      required:
+        - cityId
+        - fareId
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city this fare rule belongs to
+        fareId:
+          type: string
+          description: Fare ID that applies to this rule
+        routeId:
+          type: string
+          description: Route ID the fare applies to
+        originId:
+          type: string
+          description: Origin zone ID
+        destinationId:
+          type: string
+          description: Destination zone ID
+        containsId:
+          type: string
+          description: Zone ID that must be contained in the itinerary
+    GTFSFeedInfo:
+      type: object
+      required:
+        - cityId
+        - feedPublisherName
+        - feedPublisherUrl
+        - feedLang
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city this feed info belongs to
+        feedPublisherName:
+          type: string
+          description: Name of the organization that publishes the feed
+        feedPublisherUrl:
+          type: string
+          format: uri
+          description: URL of the feed publisher's website
+        feedLang:
+          type: string
+          description: Default language for text in the feed
+        defaultLang:
+          type: string
+          description: Language used when data consumer doesn't know language of rider
+        feedStartDate:
+          type: string
+          format: date
+          description: Date when feed starts being valid
+        feedEndDate:
+          type: string
+          format: date
+          description: Date when feed stops being valid
+        feedVersion:
+          type: string
+          description: Version string for the feed
+        feedContactEmail:
+          type: string
+          format: email
+          description: Email address for communication about the feed
+        feedContactUrl:
+          type: string
+          format: uri
+          description: URL for contact information about the feed
+    GTFSFrequency:
+      type: object
+      required:
+        - cityId
+        - tripId
+        - startTime
+        - endTime
+        - headwaySecs
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city this frequency belongs to
+        tripId:
+          type: string
+          description: Trip ID this frequency applies to
+        startTime:
+          type: string
+          description: Time when headway-based service begins (HH:MM:SS)
+        endTime:
+          type: string
+          description: Time when headway-based service ends (HH:MM:SS)
+        headwaySecs:
+          type: integer
+          description: Time in seconds between departures from the same stop
+        exactTimes:
+          type: integer
+          enum: [0, 1]
+          description: Type of service (0=not exactly scheduled, 1=exactly scheduled)
+    GTFSPathway:
+      type: object
+      required:
+        - cityId
+        - pathwayId
+        - fromStopId
+        - toStopId
+        - pathwayMode
+        - isBidirectional
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city this pathway belongs to
+        pathwayId:
+          type: string
+          description: Unique identifier for the pathway
+        fromStopId:
+          type: string
+          description: Stop ID where pathway begins
+        toStopId:
+          type: string
+          description: Stop ID where pathway ends
+        pathwayMode:
+          type: integer
+          enum: [1, 2, 3, 4, 5, 6, 7]
+          description: Type of pathway (1=walkway, 2=stairs, 3=moving sidewalk, 4=escalator, 5=elevator, 6=fare gate, 7=exit gate)
+        isBidirectional:
+          type: integer
+          enum: [0, 1]
+          description: Whether pathway can be used in both directions (0=unidirectional, 1=bidirectional)
+        length:
+          type: number
+          description: Horizontal length of pathway in meters
+        traversalTime:
+          type: integer
+          description: Average time in seconds needed to walk through the pathway
+        stairCount:
+          type: integer
+          description: Number of stairs
+        maxSlope:
+          type: number
+          description: Maximum slope ratio
+        minWidth:
+          type: number
+          description: Minimum width of pathway in meters
+        signpostedAs:
+          type: string
+          description: Text from signage visible to riders
+        reversedSignpostedAs:
+          type: string
+          description: Text from signage in the reverse direction
+    GTFSTransfer:
+      type: object
+      required:
+        - cityId
+        - fromStopId
+        - toStopId
+        - transferType
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city this transfer belongs to
+        fromStopId:
+          type: string
+          description: Stop ID where connection between routes begins
+        toStopId:
+          type: string
+          description: Stop ID where connection between routes ends
+        transferType:
+          type: integer
+          enum: [0, 1, 2, 3]
+          description: Type of connection (0=recommended, 1=timed, 2=requires minimum time, 3=not possible)
+        minTransferTime:
+          type: integer
+          description: Minimum time in seconds required to make transfer
+    GTFSTranslation:
+      type: object
+      required:
+        - cityId
+        - tableName
+        - fieldName
+        - language
+        - translation
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city this translation belongs to
+        tableName:
+          type: string
+          description: Name of the table being translated
+        fieldName:
+          type: string
+          description: Name of the field being translated
+        language:
+          type: string
+          description: Language code for this translation
+        translation:
+          type: string
+          description: Translated value
+        recordId:
+          type: string
+          description: ID of the record being translated
+        recordSubId:
+          type: string
+          description: Sub-ID for the record (when table requires composite key)
+        fieldValue:
+          type: string
+          description: Original value of the field being translated

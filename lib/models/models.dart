@@ -9,3 +9,7 @@ export 'transit_route.dart';
 export 'transit_city.dart';
 export 'route_submission.dart';
 export 'monitor_route_request.dart';
+export 'live_trip.dart';
+export 'trip_shape.dart';
+export 'trip_observation.dart';
+export 'trip_data.dart';

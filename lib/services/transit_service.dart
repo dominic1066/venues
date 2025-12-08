@@ -10,6 +10,12 @@ class TransitService {
   final http.Client _client;
   final bool enableDiagnostics;
 
+  // Map from trip key (cityId-tripId) to shape key (cityId-shapeId)
+  final Map<String, String> _tripToShapeMap = {};
+  
+  // Map from shape key (cityId-shapeId) to TripShape object
+  final Map<String, TripShape> _shapeCache = {};
+
   TransitService({http.Client? client, this.enableDiagnostics = false})
       : _client = client ?? http.Client();
 
@@ -38,6 +44,9 @@ class TransitService {
           } else if (data.containsKey('cities')) {
             final cities = data['cities'] as List?;
             debugPrint('✅ Success: Found ${cities?.length ?? 0} transit cities');
+          } else if (data.containsKey('observations')) {
+            final observations = data['observations'] as List?;
+            debugPrint('✅ Success: Found ${observations?.length ?? 0} live trips');
           } else if (data.containsKey('success')) {
             debugPrint('✅ Success: Operation completed');
           } else {
@@ -211,9 +220,9 @@ class TransitService {
 
   /// Monitor a transit route
   /// Adds a route to the monitoring list
-  Future<bool> monitorRoute(String routeId) async {
+  Future<bool> monitorRoute(int cityId, String routeId) async {
     const endpoint = '/transit/MonitorRoute';
-    final request = MonitorRouteRequest(routeId: routeId);
+    final request = MonitorRouteRequest(cityId: cityId, routeId: routeId);
 
     try {
       final response = await _client.post(
@@ -235,9 +244,9 @@ class TransitService {
 
   /// Unmonitor a transit route
   /// Removes a route from the monitoring list
-  Future<bool> unmonitorRoute(String routeId) async {
+  Future<bool> unmonitorRoute(int cityId, String routeId) async {
     const endpoint = '/transit/UnmonitorRoute';
-    final request = MonitorRouteRequest(routeId: routeId);
+    final request = MonitorRouteRequest(cityId: cityId, routeId: routeId);
 
     try {
       final response = await _client.post(
@@ -251,6 +260,118 @@ class TransitService {
 
       final data = _handleResponse(response, endpoint);
       return data['success'] as bool? ?? false;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Network error: $e', endpoint: endpoint);
+    }
+  }
+
+  /// Get live trips for a city
+  /// Returns a list of currently active trips
+  Future<List<LiveTrip>> getLiveTrips(int cityId) async {
+    final endpoint = '/transit/GetLiveTrips?cityId=$cityId';
+
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl$endpoint'),
+        headers: {'Accept': 'application/json'},
+      );
+
+      final data = _handleResponse(response, endpoint);
+      final observationsData = data['observations'] as List<dynamic>?;
+
+      if (observationsData == null) {
+        throw ApiException(
+          message: 'Invalid response format: missing observations array',
+          endpoint: endpoint,
+        );
+      }
+
+      return observationsData
+          .map((trip) => LiveTrip.fromJson(trip as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Network error: $e', endpoint: endpoint);
+    }
+  }
+
+  Future<List<LiveTrip>> getMonitoredLiveTrips(int cityId) async {
+    final endpoint = '/transit/GetMonitoredLiveTrips?cityId=$cityId';
+
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl$endpoint'),
+        headers: {'Accept': 'application/json'},
+      );
+
+      final data = _handleResponse(response, endpoint);
+      final observationsData = data['observations'] as List<dynamic>?;
+
+      if (observationsData == null) {
+        throw ApiException(
+          message: 'Invalid response format: missing observations array',
+          endpoint: endpoint,
+        );
+      }
+
+      return observationsData
+          .map((trip) => LiveTrip.fromJson(trip as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Network error: $e', endpoint: endpoint);
+    }
+  }
+
+  /// Get shape data for a specific trip
+  /// Returns the geographic path/route for a transit trip
+  Future<TripShape> getShapeForTrip(int cityId, String tripId) async {
+    final endpoint = '/transit/GetShapeForTrip?cityId=$cityId&tripId=$tripId';
+
+    if (_tripToShapeMap.containsKey('$cityId-$tripId')) {
+      final shapeKey = _tripToShapeMap['$cityId-$tripId']!;
+      if (_shapeCache.containsKey(shapeKey)) {
+        return _shapeCache[shapeKey]!;
+      }
+    }
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl$endpoint'),
+        headers: {'Accept': 'text/plain'},
+      );
+
+      final data = _handleResponse(response, endpoint);
+      
+      // Extract shapeId from response or use tripId as fallback
+      final shapeId = data['shapeId'] as String? ?? tripId;
+
+      // Cache the shape data
+      final shape = TripShape.fromJson(data, cityId, shapeId);
+      _tripToShapeMap['$cityId-$tripId'] = shape.key();
+      _shapeCache[shape.key()] = shape;
+      
+      return shape;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Network error: $e', endpoint: endpoint);
+    }
+  }
+
+  /// Get observations for a specific trip
+  /// Returns all recorded location observations for a transit trip
+  Future<TripData> getObservationsForTrip(int cityId, String tripId, int directionId, String routeShortName, String routeDesc, int routeColour) async {
+    final endpoint = '/transit/GetObservationsForTrip?cityId=$cityId&tripId=$tripId';
+
+    try {
+      final response = await _client.get(
+        Uri.parse('$_baseUrl$endpoint'),
+        headers: {'Accept': 'text/plain'},
+      );
+
+      final data = _handleResponse(response, endpoint);
+      
+      return TripData.fromJson(data, cityId, tripId, directionId, routeShortName, routeDesc, routeColour);
     } catch (e) {
       if (e is ApiException) rethrow;
       throw ApiException(message: 'Network error: $e', endpoint: endpoint);

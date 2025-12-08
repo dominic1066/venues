@@ -3,10 +3,16 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import '../models/models.dart';
 
+enum ApiServer {
+  localhost('http://localhost:3000'),
+  ngrok('https://edgy-nonluminescent-kymani.ngrok-free.dev');
+
+  final String url;
+  const ApiServer(this.url);
+}
+
 class TransitService {
-  static const String _baseUrl = 'http://localhost:3000';
-  // static const String _baseUrl =
-  //     'https://edgy-nonluminescent-kymani.ngrok-free.dev';
+  final String _baseUrl;
   final http.Client _client;
   final bool enableDiagnostics;
 
@@ -16,8 +22,12 @@ class TransitService {
   // Map from shape key (cityId-shapeId) to TripShape object
   final Map<String, TripShape> _shapeCache = {};
 
-  TransitService({http.Client? client, this.enableDiagnostics = false})
-      : _client = client ?? http.Client();
+  TransitService({
+    ApiServer server = ApiServer.localhost,
+    http.Client? client,
+    this.enableDiagnostics = false,
+  })  : _baseUrl = server.url,
+        _client = client ?? http.Client();
 
   /// Disposes the HTTP client
   void dispose() {

@@ -4,6 +4,8 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../services/transit_service.dart';
 import '../models/models.dart';
+import '../config/api_config.dart';
+import '../widgets/server_selector.dart';
 
 class MapPage extends StatefulWidget {
   const MapPage({super.key});
@@ -13,7 +15,7 @@ class MapPage extends StatefulWidget {
 }
 
 class _MapPageState extends State<MapPage> {
-  final TransitService _transitService = TransitService(enableDiagnostics: true);
+  late TransitService _transitService;
   List<TransitCity> _cities = [];
   TransitCity? _selectedCity;
   bool _isLoading = true;
@@ -37,14 +39,23 @@ class _MapPageState extends State<MapPage> {
   LatLng _mapCenter = LatLng(-41.2865, 174.7762); // Wellington as default
   double _mapZoom = 11.0;
 
+  bool _isInitialized = false;
+
   @override
-  void initState() {
-    super.initState();
-    _loadCities();
-    // Start periodic refresh every 30 seconds
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
-      _loadLiveTrips();
-    });
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isInitialized) {
+      _transitService = TransitService(
+        server: ApiConfig.of(context).server,
+        enableDiagnostics: true,
+      );
+      _isInitialized = true;
+      _loadCities();
+      // Start periodic refresh every 30 seconds
+      _refreshTimer = Timer.periodic(const Duration(seconds: 30), (timer) {
+        _loadLiveTrips();
+      });
+    }
   }
 
   @override
@@ -179,6 +190,9 @@ class _MapPageState extends State<MapPage> {
       appBar: AppBar(
         title: const Text('Transit Map'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: const [
+          ServerSelector(),
+        ],
       ),
       drawer: _buildDrawer(),
       body: Column(

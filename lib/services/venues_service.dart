@@ -2,16 +2,19 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/models.dart';
 import 'package:flutter/foundation.dart';
+import 'transit_service.dart';
 
 class VenuesService {
-  static const String _baseUrl = 'http://localhost:3000';
-  // static const String _baseUrl =
-  //     'https://edgy-nonluminescent-kymani.ngrok-free.dev';
+  final String _baseUrl;
   final http.Client _client;
   final bool enableDiagnostics;
 
-  VenuesService({http.Client? client, this.enableDiagnostics = false})
-    : _client = client ?? http.Client();
+  VenuesService({
+    ApiServer server = ApiServer.localhost,
+    http.Client? client,
+    this.enableDiagnostics = false,
+  })  : _baseUrl = server.url,
+        _client = client ?? http.Client();
 
   /// Disposes the HTTP client
   void dispose() {

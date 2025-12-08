@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/venues_service.dart';
 import '../models/models.dart';
 import 'package:intl/intl.dart';
+import '../config/api_config.dart';
+import '../widgets/server_selector.dart';
 
 class VenuesPage extends StatefulWidget {
   const VenuesPage({super.key});
@@ -11,7 +13,7 @@ class VenuesPage extends StatefulWidget {
 }
 
 class _VenuesPageState extends State<VenuesPage> {
-  final VenuesService _venuesService = VenuesService(enableDiagnostics: true);
+  late VenuesService _venuesService;
   List<Venue> _venues = [];
   List<Venue> _filteredVenues = [];
   List<VenueGroup> _venueGroups = [];
@@ -19,11 +21,19 @@ class _VenuesPageState extends State<VenuesPage> {
   Set<String> _selectedCities = {};
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isInitialized = false;
 
   @override
-  void initState() {
-    super.initState();
-    _loadData();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isInitialized) {
+      _venuesService = VenuesService(
+        server: ApiConfig.of(context).server,
+        enableDiagnostics: true,
+      );
+      _isInitialized = true;
+      _loadData();
+    }
   }
 
   @override
@@ -338,6 +348,7 @@ class _VenuesPageState extends State<VenuesPage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text('Venues Management'),
         actions: [
+          const ServerSelector(),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,

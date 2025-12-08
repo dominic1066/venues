@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/transit_service.dart';
 import '../models/models.dart';
+import '../config/api_config.dart';
+import '../widgets/server_selector.dart';
 
 class TransitPage extends StatefulWidget {
   const TransitPage({super.key});
@@ -10,7 +12,7 @@ class TransitPage extends StatefulWidget {
 }
 
 class _TransitPageState extends State<TransitPage> {
-  final TransitService _transitService = TransitService(enableDiagnostics: true);
+  late TransitService _transitService;
   List<TransitType> _transitTypes = [];
   List<TransitRoute> _transitRoutes = [];
   List<TransitRoute> _filteredRoutes = [];
@@ -20,11 +22,19 @@ class _TransitPageState extends State<TransitPage> {
   // Set<int> _monitoredRouteIds = {}; // Track which routes are being monitored
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isInitialized = false;
 
   @override
-  void initState() {
-    super.initState();
-    _loadData();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isInitialized) {
+      _transitService = TransitService(
+        server: ApiConfig.of(context).server,
+        enableDiagnostics: true,
+      );
+      _isInitialized = true;
+      _loadData();
+    }
   }
 
   @override
@@ -405,6 +415,7 @@ class _TransitPageState extends State<TransitPage> {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: const Text('Transit Management'),
         actions: [
+          const ServerSelector(),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadData,

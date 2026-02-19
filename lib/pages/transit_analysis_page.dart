@@ -818,7 +818,7 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
       final routeShortName = _routes[routeId] ?? routeId;
       final deliveryData = _getDeliveryDataForRoute(routeId);
       final apiData = _getApiDataForRoute(routeId);
-      final speedData = _getSpeedsForRoute(routeId);
+      final List<SpeedPair> speedData = _getSpeedsForRoute(routeId);
       
       routeCharts.add(
         SizedBox(
@@ -896,7 +896,7 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
     return delivered?.cast<Map<String, dynamic>>() ?? [];
   }
 
-  _getSpeedsForRoute(String routeId) {
+  List<SpeedPair> _getSpeedsForRoute(String routeId) {
     final speeds = _routeSpeedsMap[routeId] as List<SpeedPair>?;
     if (speeds == null) {
       if (_transitService.enableDiagnostics) {

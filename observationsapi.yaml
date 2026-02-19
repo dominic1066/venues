@@ -107,6 +107,37 @@ paths:
                 example: 'Missing groupId parameter'
         '500':
           description: Database error
+  /venue/GetCityDistricts:
+    get:
+      summary: Get districts for a city
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID to get districts for
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: list of districts for the city (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"districts":[{"id":1,"name":"Downtown","cityId":1},{"id":2,"name":"Uptown","cityId":1}]}'
+        '400':
+          description: Missing cityId parameter
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Missing cityId parameter'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
   /observations/GetOccupancyByVenue:
     get:
       summary: Get occupancy/observations for a venue
@@ -199,6 +230,91 @@ paths:
               schema:
                 type: string
                 example: 'Database error: <message>'
+  /transit/GetOccupancyTransitions:
+    get:
+      summary: Get occupancy transitions for a city
+      description: Returns all occupancy increment/decrement events for transit trips in a specific city
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID (integer) - required
+          required: true
+          schema:
+            type: integer
+        - name: tripDate
+          in: query
+          description: Trip date (YYYY-MM-DD) - optional filter for specific date
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Occupancy transition events (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"transitions":[{"CityId":1,"TripId":"1__0__781__TZM__102__2__102__2_20260125","TripDate":"2026-02-15T00:00:00.000Z","Increment":1,"Latitude":-41.2836838,"Longitude":174.7754822,"Timestamp":1771131788}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"cityId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/GetTripsForRoute:
+    get:
+      summary: Get trips for a specific route
+      description: Returns all trips that belong to a specific transit route in a city
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID (integer) - required
+          required: true
+          schema:
+            type: integer
+        - name: routeId
+          in: query
+          description: Route ID (string) - required
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Trips for the specified route (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"trips":[{"tripId":"123","routeId":"1","serviceId":"weekday"}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"cityId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
   /transit/GetTransitCities:
     get:
       summary: Get transit cities
@@ -237,6 +353,42 @@ paths:
               schema:
                 type: string
                 example: 'Database error: <message>'
+  /transit/GetMonitoredRoutes:
+    get:
+      summary: Get monitored routes for a city
+      description: Returns all transit routes that are currently being monitored in a specific city
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID (integer) - required
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Monitored routes for the city (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"routes":[{"routeId":"1","cityId":1,"shortName":"Route 1"}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"cityId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
   /transit/GetLiveTrips:
     get:
       summary: Get live trips for a city
@@ -256,6 +408,150 @@ paths:
               schema:
                 type: string
                 example: '{"observations":[{"tripId":"123","routeId":"1","lat":47.6,"lon":-122.3}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"cityId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/GetMonitoredLiveTrips:
+    get:
+      summary: Get monitored live trips for a city
+      description: Returns live transit trips for routes that are being monitored in a specific city
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID (integer) - required
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Live trip observations for monitored routes (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"observations":[{"tripId":"123","routeId":"1","lat":47.6,"lon":-122.3}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"cityId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/GetMonitoredTripsForToday:
+    get:
+      summary: Get monitored trips for today
+      description: Returns all monitored transit trips scheduled for today in a specific city
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID (integer) - required
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Monitored trips for today (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"monitoredTrips":[{"tripId":"123","routeId":"1","startTime":"08:00:00"}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"cityId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/GetCityDistricts:
+    get:
+      summary: Get districts for a city
+      description: Returns all districts/zones within a specific city for transit planning
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID to get districts for - required
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of districts for the city (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"districts":[{"id":1,"name":"Downtown","cityId":1},{"id":2,"name":"Uptown","cityId":1}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"cityId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/GetMonitoredTripsForToday:
+    get:
+      summary: Get monitored trips for today
+      description: Returns all monitored transit trips scheduled for today in a specific city
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID (integer) - required
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Monitored trips for today (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"monitoredTrips":[{"tripId":"123","routeId":"1","startTime":"08:00:00"}]}'
         '400':
           description: Validation error
           content:
@@ -315,6 +611,48 @@ paths:
               schema:
                 type: string
                 example: 'Database error: <message>'
+  /transit/GetFinalStopForTrip:
+    get:
+      summary: Get final stop data for a specific trip
+      description: Returns the final stop information for a transit trip
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID (integer) - required
+          required: true
+          schema:
+            type: integer
+        - name: tripId
+          in: query
+          description: Trip ID (string) - required
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Final stop data (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"shape":[{"stopId":"123","stopName":"Final Station","lat":47.6,"lon":-122.3}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"tripId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
   /transit/GetObservationsForTrip:
     get:
       summary: Get observations for a specific trip
@@ -350,6 +688,140 @@ paths:
                   error:
                     type: string
                     example: '"tripId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/GetRouteDistrictStats:
+    get:
+      summary: Get route statistics by district
+      description: Returns statistical data for transit routes aggregated by district, with optional filtering
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID (integer) - required
+          required: true
+          schema:
+            type: integer
+        - name: routeId
+          in: query
+          description: Route ID (string) - optional filter for specific route
+          required: false
+          schema:
+            type: string
+        - name: districtId
+          in: query
+          description: District ID (integer) - optional filter for specific district
+          required: false
+          schema:
+            type: integer
+        - name: tripDate
+          in: query
+          description: Trip date (YYYY-MM-DD) - optional filter for specific date
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Route district statistics (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"routeDistrictStats":[{"routeId":"1","districtId":1,"avgSpeed":25.5,"tripCount":42}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"cityId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/GetDistrictHourlySpeeds:
+    get:
+      summary: Get hourly speed data by district
+      description: Returns hourly speed statistics for transit routes, grouped by route and hour, with separate inward and outward speed measurements
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID (integer) - required
+          required: true
+          schema:
+            type: integer
+        - name: tripDate
+          in: query
+          description: Trip date (YYYY-MM-DD) - optional filter for specific date
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Hourly speed data by route and direction (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"speeds":[{"routeId":"10","inwardSpeed":20.31774484052533,"outwardSpeed":null,"theHour":5},{"routeId":"10","inwardSpeed":22.478571007371006,"outwardSpeed":26.232123271434215,"theHour":6}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"cityId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/GetCityVehicles:
+    get:
+      summary: Get vehicles for a city
+      description: Returns all vehicles registered in a specific city
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID (integer) - required
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: City vehicles (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"vehicles":[{"cityId":1,"vehicleId":"V123","passengersSeated":30,"passengersStanding":20,"passengersTotal":50,"make":"Mercedes","model":"Citaro","registration":"ABC123"}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"cityId" is required'
         '500':
           description: Database error
           content:
@@ -502,6 +974,196 @@ paths:
                   error:
                     type: string
                     example: "id is required"
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/SubmitTransitObservation:
+    post:
+      summary: Submit a transit observation
+      description: Creates a new transit vehicle observation with location and trip details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitObservation'
+      responses:
+        '200':
+          description: Observation successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"tripId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/SubmitOccupancyIncrement:
+    post:
+      summary: Submit an occupancy increment observation
+      description: Creates a new occupancy change record for a transit trip at a specific location
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OccupancyIncrement'
+      responses:
+        '200':
+          description: Occupancy increment successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"tripId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/SubmitVehicleData:
+    post:
+      summary: Submit vehicle data
+      description: Creates or updates vehicle information including capacity and registration details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Vehicle'
+      responses:
+        '200':
+          description: Vehicle data successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"vehicleId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/SubmitTripStats:
+    post:
+      summary: Submit or update trip statistics
+      description: Creates or updates aggregated statistics for a transit trip including latest location and averages
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TripStats'
+      responses:
+        '200':
+          description: Trip statistics successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"tripId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/SubmitTripStatsbyDistrict:
+    post:
+      summary: Submit trip statistics aggregated by district
+      description: Creates or updates trip statistics for a specific leg of a trip within a district
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TripStatsByDistrict'
+      responses:
+        '200':
+          description: District trip statistics successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"cityId" is required'
         '500':
           description: Database error
           content:
@@ -1101,6 +1763,231 @@ components:
         id:
           type: integer
           description: Database ID of the route to monitor/unmonitor
+    TransitObservation:
+      type: object
+      required:
+        - tripId
+        - cityId
+        - shapeId
+        - serviceId
+        - long
+        - lat
+        - bearing
+        - routeId
+        - directionId
+        - startDate
+        - vehicleId
+        - occupancyStatus
+        - timestamp
+      properties:
+        tripId:
+          type: string
+          maxLength: 100
+          description: Unique identifier for the trip
+        cityId:
+          type: integer
+          description: ID of the city
+        shapeId:
+          type: string
+          maxLength: 100
+          description: Identifier for the shape/path
+        serviceId:
+          type: string
+          maxLength: 100
+          description: Service calendar identifier
+        long:
+          type: number
+          format: float
+          description: Longitude coordinate
+        lat:
+          type: number
+          format: float
+          description: Latitude coordinate
+        bearing:
+          type: integer
+          description: Vehicle bearing/heading in degrees
+        routeId:
+          type: string
+          maxLength: 100
+          description: Route identifier
+        directionId:
+          type: integer
+          description: Direction of travel (0 or 1)
+        startDate:
+          type: string
+          format: date
+          description: Service start date
+        vehicleId:
+          type: string
+          maxLength: 10
+          description: Vehicle identifier
+        occupancyStatus:
+          type: integer
+          description: Occupancy status code
+        timestamp:
+          type: integer
+          description: Unix timestamp of the observation
+    OccupancyIncrement:
+      type: object
+      required:
+        - tripId
+        - cityId
+        - tripDate
+        - long
+        - lat
+        - occupancyIncrement
+        - timestamp
+      properties:
+        tripId:
+          type: string
+          maxLength: 100
+          description: Unique identifier for the trip
+        cityId:
+          type: integer
+          description: ID of the city
+        tripDate:
+          type: string
+          format: date
+          description: Date of the trip (YYYY-MM-DD)
+        long:
+          type: number
+          format: float
+          description: Longitude coordinate where occupancy change occurred
+        lat:
+          type: number
+          format: float
+          description: Latitude coordinate where occupancy change occurred
+        occupancyIncrement:
+          type: integer
+          description: Change in occupancy (positive for boarding, negative for alighting)
+        timestamp:
+          type: integer
+          description: Unix timestamp of the occupancy change observation
+    Vehicle:
+      type: object
+      required:
+        - cityId
+        - vehicleId
+        - passengersSeated
+        - passengersStanding
+        - passengersTotal
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city where the vehicle operates
+        vehicleId:
+          type: string
+          description: Unique identifier for the vehicle
+        passengersSeated:
+          type: integer
+          description: Maximum number of seated passengers
+        passengersStanding:
+          type: integer
+          description: Maximum number of standing passengers
+        passengersTotal:
+          type: integer
+          description: Total maximum passenger capacity
+        make:
+          type: string
+          description: Vehicle manufacturer
+        model:
+          type: string
+          description: Vehicle model
+        registration:
+          type: string
+          description: Vehicle registration/license plate number
+    TripStats:
+      type: object
+      required:
+        - cityId
+        - tripId
+        - tripDate
+        - latestLat
+        - latestLong
+        - latestBearing
+        - latestTimestamp
+        - averageSpeed
+        - averageOccupancyStatus
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city
+        tripId:
+          type: string
+          description: Unique identifier for the trip
+        tripDate:
+          type: string
+          format: date
+          description: Date of the trip
+        latestLat:
+          type: number
+          format: float
+          description: Latest latitude coordinate
+        latestLong:
+          type: number
+          format: float
+          description: Latest longitude coordinate
+        latestBearing:
+          type: number
+          format: float
+          description: Latest vehicle bearing/heading
+        latestTimestamp:
+          type: integer
+          description: Unix timestamp of latest observation
+        averageSpeed:
+          type: number
+          format: float
+          description: Average speed for the trip
+        averageOccupancyStatus:
+          type: number
+          format: float
+          description: Average occupancy status for the trip
+    TripStatsByDistrict:
+      type: object
+      required:
+        - cityId
+        - tripId
+        - tripDate
+        - districtId
+        - legId
+        - averageSpeed
+        - initialOccupancyStatus
+        - finalOccupancyStatus
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city
+        tripId:
+          type: string
+          description: Unique identifier for the trip
+        tripDate:
+          type: string
+          format: date
+          description: Date of the trip
+        districtId:
+          type: integer
+          description: ID of the district within the city
+        legId:
+          type: integer
+          description: ID of the trip leg within the district
+        averageSpeed:
+          type: number
+          format: float
+          description: Average speed for this leg of the trip
+        initialOccupancyStatus:
+          type: integer
+          description: Occupancy status at the start of this leg
+        finalOccupancyStatus:
+          type: integer
+          description: Occupancy status at the end of this leg
+        distanceTravelled:
+          type: number
+          format: float
+          description: Distance travelled during this leg
+        duration:
+          type: number
+          format: float
+          description: Duration of this leg in the district
     GTFSAgency:
       type: object
       required:

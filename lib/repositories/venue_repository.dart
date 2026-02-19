@@ -15,7 +15,7 @@ class VenueRepository {
   }
 
   // Get venue by ID
-  Future<Venue?> getVenueById(String id) async {
+  Future<Venue?> getVenueById(int id) async {
     try {
       return _venues.firstWhere((venue) => venue.id == id);
     } catch (e) {
@@ -37,7 +37,7 @@ class VenueRepository {
   }
 
   // Delete venue
-  Future<void> deleteVenue(String id) async {
+  Future<void> deleteVenue(int id) async {
     _venues.removeWhere((venue) => venue.id == id);
   }
 }

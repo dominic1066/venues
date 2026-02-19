@@ -148,3 +148,85 @@ flutter run --debug
 - Add user preferences for default page
 - Enhanced error reporting and logging
 - Push notifications for route monitoring updates
+
+## Recent Update: MQTT Integration (January 2026)
+
+### ✅ MQTT Real-Time Transit Updates
+Added comprehensive MQTT integration for real-time transit information:
+
+#### New Components
+1. **MqttService** (`lib/services/mqtt_service.dart`)
+   - Low-level MQTT client wrapper
+   - Broker connection and subscription management
+   - Message routing and stream handling
+
+2. **TransitMqttManager** (`lib/services/transit_mqtt_manager.dart`)
+   - High-level transit-specific MQTT functionality
+   - Data aggregation and caching
+   - Stream management for UI components
+
+3. **MqttConfig** (`lib/config/mqtt_config.dart`)
+   - MQTT broker configuration management
+   - Preset configurations for common brokers
+
+4. **MQTT Widgets** (`lib/widgets/mqtt_widgets.dart`)
+   - Connection status display
+   - Live transit updates visualization
+   - Real-time position tracking
+
+5. **MQTT Transit Page** (`lib/pages/mqtt_transit_page.dart`)
+   - Dedicated page for real-time updates
+   - Tabbed interface (Live Trips / Positions)
+   - Connection management and error handling
+
+#### MQTT Topics Supported
+- `transit/{cityId}/live_trips` - Live trip updates
+- `transit/{cityId}/trip_observations` - Real-time positions
+- `transit/{cityId}/trip_data` - Complete trip information
+- `transit/{cityId}/route_updates` - Route changes
+- `transit/{cityId}/alerts` - Service alerts
+
+#### Key Features
+- **Real-time Updates**: Live transit data via MQTT
+- **Auto-reconnection**: Robust connection management
+- **Multi-broker Support**: Localhost, test brokers, production
+- **Diagnostics**: Comprehensive logging and debugging
+- **Test Utilities**: Built-in message simulation tools
+
+#### Dependencies Added
+- `mqtt_client: ^10.2.0` - MQTT client for Flutter
+
+#### Navigation
+- Access via drawer menu: "Live Updates" → "MQTT Real-time"
+- Route: `/mqtt-transit`
+
+#### Documentation
+- Complete implementation guide: `MQTT_INTEGRATION.md`
+- Configuration examples and troubleshooting
+- Testing utilities and broker setup instructions
+
+### Updated Application Structure
+```
+lib/
+├── config/
+│   ├── api_config.dart
+│   └── mqtt_config.dart          # NEW
+├── models/
+│   └── models.dart               # Updated exports
+├── pages/
+│   ├── venues_page.dart
+│   ├── transit_page.dart         # Updated with MQTT navigation
+│   ├── map_page.dart
+│   └── mqtt_transit_page.dart    # NEW
+├── services/
+│   ├── venues_service.dart
+│   ├── transit_service.dart
+│   ├── mqtt_service.dart         # NEW
+│   ├── transit_mqtt_manager.dart # NEW
+│   └── mqtt_test_util.dart       # NEW
+├── widgets/
+│   └── mqtt_widgets.dart         # NEW
+└── main.dart                     # Updated with MQTT config
+```
+
+The application now provides both traditional API-based transit management and modern real-time MQTT-based updates for a complete transit monitoring solution.

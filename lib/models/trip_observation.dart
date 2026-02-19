@@ -3,12 +3,16 @@ class TripObservation {
   final double lon;
   final int timestamp;
   final double bearing;
+  final int occupancyStatus;
+  final double averageOccupancyStatus;
 
   const TripObservation({
     required this.lat,
     required this.lon,
     required this.timestamp,
     required this.bearing,
+    required this.occupancyStatus,
+    required this.averageOccupancyStatus,
   });
 
   factory TripObservation.fromJson(Map<String, dynamic> json) {
@@ -17,6 +21,8 @@ class TripObservation {
       lon: (json['long'] as num).toDouble(),
       timestamp: json['timestamp'] as int,
       bearing: (json['bearing'] as num).toDouble(),
+      occupancyStatus: json['occupancy_status'] as int? ?? 0,
+      averageOccupancyStatus: (json['average_occupancy_status'] as num?)?.toDouble() ?? 0.0,
     );
   }
 

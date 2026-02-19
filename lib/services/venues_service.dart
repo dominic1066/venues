@@ -27,8 +27,8 @@ class VenuesService {
     String endpoint,
   ) {
     if (enableDiagnostics) {
-      debugPrint('🌐 API Call: $endpoint');
-      debugPrint('📊 Status: ${response.statusCode}');
+      // debugPrint('🌐 API Call: $endpoint');
+      // debugPrint('📊 Status: ${response.statusCode}');
       if (response.statusCode == 200) {
         try {
           final data = json.decode(response.body) as Map<String, dynamic>;
@@ -44,7 +44,7 @@ class VenuesService {
               '✅ Success: Found ${observations?.length ?? 0} observations',
             );
           } else {
-            debugPrint('✅ Success: Data received');
+            // debugPrint('✅ Success: Data received');
           }
         } catch (e) {
           debugPrint('✅ Success: Response received (parsing will continue)');

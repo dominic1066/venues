@@ -18,20 +18,20 @@ class _VenuesPageState extends State<VenuesPage> {
   List<Venue> _filteredVenues = [];
   List<VenueGroup> _venueGroups = [];
   List<City> _cities = [];
-  Set<String> _selectedCities = {};
+  final Set<String> _selectedCities = {};
   bool _isLoading = false;
   String? _errorMessage;
-  bool _isInitialized = false;
+  bool _isinitialised = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_isInitialized) {
+    if (!_isinitialised) {
       _venuesService = VenuesService(
         server: ApiConfig.of(context).server,
         enableDiagnostics: true,
       );
-      _isInitialized = true;
+      _isinitialised = true;
       _loadData();
     }
   }
@@ -412,6 +412,38 @@ class _VenuesPageState extends State<VenuesPage> {
               onTap: () {
                 Navigator.pop(context); // Close drawer
                 Navigator.pushReplacementNamed(context, '/map');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.analytics),
+              title: const Text('Transit Analysis'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.pushReplacementNamed(context, '/transit-analysis');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.route),
+              title: const Text('View Single Trip'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.pushReplacementNamed(context, '/view-single-trip');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.people),
+              title: const Text('Occupancy Transitions'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.pushReplacementNamed(context, '/occupancy-transitions');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.directions_bus),
+              title: const Text('Vehicles'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.pushReplacementNamed(context, '/vehicles');
               },
             ),
           ],

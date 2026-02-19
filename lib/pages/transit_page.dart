@@ -22,17 +22,17 @@ class _TransitPageState extends State<TransitPage> {
   // Set<int> _monitoredRouteIds = {}; // Track which routes are being monitored
   bool _isLoading = false;
   String? _errorMessage;
-  bool _isInitialized = false;
+  bool _isinitialised = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_isInitialized) {
+    if (!_isinitialised) {
       _transitService = TransitService(
         server: ApiConfig.of(context).server,
         enableDiagnostics: true,
       );
-      _isInitialized = true;
+      _isinitialised = true;
       _loadData();
     }
   }
@@ -479,6 +479,47 @@ class _TransitPageState extends State<TransitPage> {
               onTap: () {
                 Navigator.pop(context); // Close drawer
                 Navigator.pushReplacementNamed(context, '/map');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.analytics),
+              title: const Text('Transit Analysis'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.pushReplacementNamed(context, '/transit-analysis');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.route),
+              title: const Text('View Single Trip'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.pushReplacementNamed(context, '/view-single-trip');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.people),
+              title: const Text('Occupancy Transitions'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.pushReplacementNamed(context, '/occupancy-transitions');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.directions_bus),
+              title: const Text('Vehicles'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.pushReplacementNamed(context, '/vehicles');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.wifi),
+              title: const Text('Live Updates'),
+              subtitle: const Text('MQTT Real-time'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.pushReplacementNamed(context, '/mqtt-transit');
               },
             ),
           ],

@@ -44,6 +44,8 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
 
   // Map of route IDs to route short names
   Map<String, String> _routes = {};
+  bool _isLoadingRoutes = false;
+  String? _routesError;
 
   bool _isInitialized = false;
 
@@ -187,12 +189,25 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
 
   /// Load routes for the selected city
   Future<void> _loadRoutes() async {
-    if (_selectedCity == null) return;
+    if (_selectedCity == null) {
+      setState(() {
+        _isLoadingRoutes = false;
+        _routesError = 'No city selected';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoadingRoutes = true;
+      _routesError = null;
+    });
 
     try {
       final routes = await _transitService.getMonitoredRoutes(_selectedCity!.id);
       setState(() {
         _routes = routes;
+        _isLoadingRoutes = false;
+        _routesError = routes.isEmpty ? 'No monitored routes found for ${_selectedCity!.name}' : null;
       });
       if (_transitService.enableDiagnostics) {
         debugPrint('📊 Analysis: Loaded ${routes.length} routes for ${_selectedCity!.name}');
@@ -201,6 +216,10 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
       if (_transitService.enableDiagnostics) {
         debugPrint('📊 Analysis: Error loading routes: $e');
       }
+      setState(() {
+        _isLoadingRoutes = false;
+        _routesError = 'Failed to load routes: $e';
+      });
     }
   }
 
@@ -774,6 +793,48 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
 
   /// Build route delivery charts for district 1
   Widget _buildRouteCharts() {
+    if (_isLoadingRoutes) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Loading routes...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_routesError != null) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.orange),
+              const SizedBox(height: 16),
+              Text(
+                _routesError!,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: Colors.orange,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton.icon(
+                onPressed: _loadRoutes,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     if (_routes.isEmpty) {
       return Card(
         child: Padding(
@@ -783,7 +844,7 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
               const Icon(Icons.hourglass_empty, size: 48, color: Colors.grey),
               const SizedBox(height: 16),
               Text(
-                'Loading routes...',
+                'No routes available',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: Colors.grey,
                 ),

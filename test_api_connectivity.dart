@@ -1,4 +1,5 @@
 import 'package:venues/services/venues_service.dart';
+import 'package:venues/models/models.dart';
 
 Future<void> main() async {
   print('🔧 VenuesService API Testing Guide\n');
@@ -73,13 +74,20 @@ Future<void> runDetailedTests(VenuesService service) async {
   ];
   
   // Run basic tests
-  var venues, cities, groups;
+  List<Venue>? venues;
+  List<City>? cities;
+  List<VenueGroup>? groups;
+  
   for (int i = 0; i < tests.length; i++) {
     try {
       final result = await tests[i]();
-      if (i == 0) venues = result;
-      else if (i == 2) cities = result;
-      else if (i == 3) groups = result;
+      if (i == 0) {
+        venues = result as List<Venue>;
+      } else if (i == 2) {
+        cities = result as List<City>;
+      } else if (i == 3) {
+        groups = result as List<VenueGroup>;
+      }
       print('   ✅ Success\n');
     } catch (e) {
       print('   ❌ Error: $e\n');

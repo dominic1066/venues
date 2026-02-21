@@ -10,6 +10,11 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.1.0
+  intl: ^0.20.2
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  mqtt_client: ^10.2.0
+  graphic: ^2.3.0
 
 dev_dependencies:
   flutter_test:

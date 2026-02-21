@@ -2,16 +2,19 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/models.dart';
 import 'package:flutter/foundation.dart';
+import 'transit_service.dart';
 
 class VenuesService {
-  // static const String _baseUrl = 'http://localhost:3000';
-  static const String _baseUrl =
-      'https://edgy-nonluminescent-kymani.ngrok-free.dev';
+  final String _baseUrl;
   final http.Client _client;
   final bool enableDiagnostics;
 
-  VenuesService({http.Client? client, this.enableDiagnostics = false})
-    : _client = client ?? http.Client();
+  VenuesService({
+    ApiServer server = ApiServer.localhost,
+    http.Client? client,
+    this.enableDiagnostics = false,
+  })  : _baseUrl = server.url,
+        _client = client ?? http.Client();
 
   /// Disposes the HTTP client
   void dispose() {
@@ -24,8 +27,8 @@ class VenuesService {
     String endpoint,
   ) {
     if (enableDiagnostics) {
-      debugPrint('🌐 API Call: $endpoint');
-      debugPrint('📊 Status: ${response.statusCode}');
+      // debugPrint('🌐 API Call: $endpoint');
+      // debugPrint('📊 Status: ${response.statusCode}');
       if (response.statusCode == 200) {
         try {
           final data = json.decode(response.body) as Map<String, dynamic>;
@@ -41,7 +44,7 @@ class VenuesService {
               '✅ Success: Found ${observations?.length ?? 0} observations',
             );
           } else {
-            debugPrint('✅ Success: Data received');
+            // debugPrint('✅ Success: Data received');
           }
         } catch (e) {
           debugPrint('✅ Success: Response received (parsing will continue)');

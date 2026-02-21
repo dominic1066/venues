@@ -6,6 +6,8 @@ class Venue {
   final String? description;
   final double? latitude;
   final double? longitude;
+  final DateTime createdAt;
+  final DateTime updatedAt;
   final DateTime? lastObservation;
 
   Venue({
@@ -16,6 +18,8 @@ class Venue {
     this.description,
     this.latitude,
     this.longitude,
+    required this.createdAt,
+    required this.updatedAt,
     this.lastObservation,
   });
 
@@ -28,6 +32,8 @@ class Venue {
       description: json['description']?.toString(),
       latitude: json['latitude']?.toDouble(),
       longitude: json['longitude']?.toDouble(),
+      createdAt: DateTime.parse(json['createdAt']),
+      updatedAt: DateTime.parse(json['updatedAt']),
       lastObservation: json['last_observation'] != null ? DateTime.parse(json['last_observation']) : null,
     );
   }
@@ -42,5 +48,9 @@ class Venue {
       'latitude': latitude,
       'longitude': longitude,
       'last_observation': lastObservation?.toIso8601String(),};
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+      if (lastObservation != null) 'last_observation': lastObservation!.toIso8601String(),
+    };
   }
 }

@@ -3,14 +3,13 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mqtt_client/mqtt_client.dart';
-import 'package:graphic/graphic.dart';
+import 'package:syncfusion_flutter_charts/charts.dart';
 import '../services/transit_service.dart';
 import '../services/transit_mqtt_manager.dart';
 import '../models/models.dart';
 import '../config/api_config.dart';
 import '../widgets/server_selector.dart';
 import '../main.dart';
-import 'dart:math' as math;
 
 class TransitAnalysisPage extends StatefulWidget {
   const TransitAnalysisPage({super.key});
@@ -24,6 +23,7 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
   TransitMqttManager? _mqttManager;
   List<TransitCity> _cities = [];
   TransitCity? _selectedCity;
+  District? _selectedDistrict;
   bool _isLoading = true;
   String? _error;
 
@@ -34,6 +34,9 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
   final Map<String, Map<String, dynamic>> _routeAnalytics = {};
   List<dynamic> _netAnalyticData = [];
   final List<Map<String, dynamic>> _realtimeEvents = [];
+  
+  // Store the latest combined data from MQTT netDelivered
+  List<Map<String, dynamic>> _combinedMqttData = [];
 
   // Store initial API data from getRouteDistrictStats
   final Map<String, List<RouteDistrictStats>> _initialRouteStats = {};
@@ -170,9 +173,11 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
       setState(() {
         _cities = cities;
         _isLoading = false;
-        // Optionally select the first city by default
         if (cities.isNotEmpty) {
           _selectedCity = cities.first;
+          _selectedDistrict = cities.first.districts.isNotEmpty
+              ? cities.first.districts.first
+              : null;
         }
       });
       // Load routes and start analytics collection after cities are loaded
@@ -241,7 +246,10 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
       }
       
       try {
-        final combinedStats = await _transitService.getRouteDistrictStats(_selectedCity!.id);
+        final combinedStats = await _transitService.getRouteDistrictStats(
+          _selectedCity!.id,
+          districtId: _selectedDistrict?.districtId,
+        );
         _combinedRouteStats = combinedStats;
       } catch (e) {
         if (_transitService.enableDiagnostics) {
@@ -287,7 +295,7 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
         }
         
         try {
-          final routeStats = await _loadRouteStatsWithRetry(_selectedCity!.id, routeId);
+          final routeStats = await _loadRouteStatsWithRetry(_selectedCity!.id, routeId, districtId: _selectedDistrict?.districtId);
           _initialRouteStats[routeId] = routeStats;
         } catch (e) {
           if (_transitService.enableDiagnostics) {
@@ -306,17 +314,27 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
         debugPrint('📊 Analysis: Error loading initial analytics data: $e');
       }
     } finally {
-      setState(() {
-        _isLoadingInitialData = false;
+      // Defer the final setState to after the current frame.  When chart data
+      // changes, Syncfusion replaces internal CustomLayoutBuilderElement children
+      // during the rebuild triggered by this setState.  Those old elements call
+      // markNeedsLayout inside their unmount(), which Flutter's debug assertion
+      // rejects if it happens mid-frame.  addPostFrameCallback ensures the
+      // previous frame has fully committed before the rebuild runs.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(() {
+            _isLoadingInitialData = false;
+          });
+        }
       });
     }
   }
 
   /// Load route stats with retry logic
-  Future<List<RouteDistrictStats>> _loadRouteStatsWithRetry(int cityId, String routeId, {int maxRetries = 3}) async {
+  Future<List<RouteDistrictStats>> _loadRouteStatsWithRetry(int cityId, String routeId, {int maxRetries = 3, int? districtId}) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        final stats = await _transitService.getRouteDistrictStats(cityId, routeId: routeId);
+        final stats = await _transitService.getRouteDistrictStats(cityId, routeId: routeId, districtId: districtId);
         return stats;
       } catch (e) {
         if (_transitService.enableDiagnostics) {
@@ -437,6 +455,18 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
           'cityId': cityId,
           'district': district,
         };
+
+        // Extract netDelivered for combined chart (only update if this is for the selected district)
+        final selectedDistrictId = _selectedDistrict?.districtId?.toString();
+        if (district == selectedDistrictId && data.containsKey('netDelivered')) {
+          final netDelivered = data['netDelivered'] as List<dynamic>?;
+          if (netDelivered != null) {
+            _combinedMqttData = netDelivered.cast<Map<String, dynamic>>();
+            if (_transitService.enableDiagnostics) {
+              debugPrint('📊 Analysis: Updated combined MQTT data with ${_combinedMqttData.length} entries');
+            }
+          }
+        }
 
         // Add to realtime events (keep last 100)
         _realtimeEvents.add({
@@ -665,12 +695,16 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
         children: [
           // City selector
           _buildCitySelector(),
+          const SizedBox(height: 12),
+
+          // District selector
+          _buildDistrictSelector(),
           const SizedBox(height: 24),
-          
+
           // Combined routes delivery chart (at the top)
           if (_combinedRouteStats.isNotEmpty || _isLoadingInitialData)
             _buildCombinedRouteChart(),
-          
+
           // Route delivery charts
           _buildRouteCharts(),
         ],
@@ -717,16 +751,89 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
                   if (newCity != null && newCity != _selectedCity) {
                     setState(() {
                       _selectedCity = newCity;
-                      // Clear previous analytics data
+                      _selectedDistrict = newCity.districts.isNotEmpty
+                          ? newCity.districts.first
+                          : null;
+                      // Clear MQTT/event data immediately (doesn't affect charts)
                       _routeAnalytics.clear();
                       _realtimeEvents.clear();
-                      _routes.clear();
-                      _initialRouteStats.clear();
-                      _combinedRouteStats.clear();
+                      _combinedMqttData.clear();
+                      // Signal loading without removing chart data from the tree —
+                      // clearing _routes/_combinedRouteStats here would cause
+                      // SfCartesianChart to unmount mid-frame and trigger a
+                      // markNeedsLayout assert inside Syncfusion's element.unmount.
+                      _isLoadingRoutes = true;
+                      _routesError = null;
+                      _isLoadingInitialData = true;
                     });
                     _loadRoutes();
                     _loadInitialAnalyticsData();
                     _startAnalyticsCollection();
+                  }
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDistrictSelector() {
+    final districts = _selectedCity?.districts ?? [];
+
+    if (districts.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(12.0),
+          child: Text('No districts available for this city'),
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            const Icon(Icons.map_outlined),
+            const SizedBox(width: 12),
+            const Text(
+              'District:',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: DropdownButton<District>(
+                value: _selectedDistrict,
+                isExpanded: true,
+                items: districts.map((district) {
+                  return DropdownMenuItem<District>(
+                    value: district,
+                    child: Text(district.name),
+                  );
+                }).toList(),
+                onChanged: (District? newDistrict) {
+                  if (newDistrict != null && newDistrict != _selectedDistrict) {
+                    // Defer to the next frame so the current frame (including any
+                    // in-flight Syncfusion chart element lifecycle) finishes before
+                    // we swap the chart data.
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        setState(() {
+                          _selectedDistrict = newDistrict;
+                          // Clear MQTT/event data immediately (doesn't affect charts)
+                          _routeAnalytics.clear();
+                          _realtimeEvents.clear();
+                          _combinedMqttData.clear();
+                          _isLoadingInitialData = true;
+                        });
+                        _loadInitialAnalyticsData();
+                      }
+                    });
                   }
                 },
               ),
@@ -751,7 +858,7 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
                 const Icon(Icons.analytics, color: Colors.purple),
                 const SizedBox(width: 8),
                 Text(
-                  'Combined Routes - District 1 Deliveries (All Routes)',
+                  'Combined Routes - ${_selectedDistrict?.name ?? 'District'} Deliveries (All Routes)',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.purple,
@@ -761,8 +868,10 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
             ),
             const SizedBox(height: 16),
             SizedBox(
-              height: 250, // Slightly taller for combined chart
-              child: _isLoadingInitialData
+              height: 250,
+              // Keep SfCartesianChart in the tree while refreshing data to avoid
+              // Syncfusion's markNeedsLayout-during-unmount assert.
+              child: _isLoadingInitialData && _combinedRouteStats.isEmpty
                   ? const Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -783,7 +892,18 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
                             ),
                           ),
                         )
-                      : _buildCombinedBarChart(_combinedRouteStats),
+                      : Stack(
+                          children: [
+                            _buildCombinedBarChart(_combinedRouteStats),
+                            if (_isLoadingInitialData)
+                              Positioned.fill(
+                                child: ColoredBox(
+                                  color: Colors.white54,
+                                  child: const Center(child: CircularProgressIndicator()),
+                                ),
+                              ),
+                          ],
+                        ),
             ),
           ],
         ),
@@ -791,9 +911,12 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
     );
   }
 
-  /// Build route delivery charts for district 1
+  /// Build route delivery charts for the selected district
   Widget _buildRouteCharts() {
-    if (_isLoadingRoutes) {
+    // Only show the spinner when there are no existing charts to display —
+    // if we have prior route data, keep the SfCartesianChart widgets in the
+    // tree while the refresh runs to avoid Syncfusion's markNeedsLayout assert.
+    if (_isLoadingRoutes && _routes.isEmpty) {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(16.0),
@@ -855,7 +978,6 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
       );
     }
 
-    // Get delivery data for each route in district 1
     final routeCharts = <Widget>[];
     
     // Determine chart width based on screen size
@@ -897,7 +1019,7 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Route $routeShortName ($routeId) - District 1 Deliveries',
+                          'Route $routeShortName ($routeId) - ${_selectedDistrict?.name ?? 'District'} Deliveries',
                           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -936,21 +1058,14 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
     );
   }
 
-  /// Get delivery data for a specific route in district 1
+  /// Get delivery data for a specific route in the selected district
   List<Map<String, dynamic>> _getDeliveryDataForRoute(String routeId) {
-    final key = '${_selectedCity?.id}-$routeId-1'; // District 1 only
+    final districtId = _selectedDistrict?.districtId ?? 1;
+    final key = '${_selectedCity?.id}-$routeId-$districtId';
     final routeData = _routeAnalytics[key];
     
     if (routeData == null || !routeData.containsKey('delivered')) {
       return [];
-    }
-    if (routeData['netDelivered'] != null) {
-      // If netDelivered is available, save it
-      _netAnalyticData = routeData['netDelivered'] as List<dynamic>? ?? [];
-      _combinedRouteStats = _netAnalyticData
-          .map((stat) => RouteDistrictStats.fromJson(stat as Map<String, dynamic>))
-          .toList();
-
     }
     
     final delivered = routeData['delivered'] as List<dynamic>?;
@@ -967,288 +1082,218 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
     }
     return speeds;
   } 
-  /// Get API data for a specific route in district 1
+  /// Get API data for a specific route in the selected district
   List<RouteDistrictStats> _getApiDataForRoute(String routeId) {
-    final routeStats = _initialRouteStats[routeId];
-    if (routeStats == null) return [];
-    
-    // Filter for district 1 only
-    return routeStats.where((stat) => stat.districtId == 1).toList();
+    // API already filtered by district; return all cached rows for this route.
+    return _initialRouteStats[routeId] ?? [];
   }
 
-  /// Build bar chart for combined routes using API data
+  /// Build bar chart for combined routes using MQTT data when available, otherwise API data
   Widget _buildCombinedBarChart(List<RouteDistrictStats> stats) {
-    if (stats.isEmpty) return const SizedBox.shrink();
-    
-    // Filter for district 1 and aggregate by hour
-    final Map<int, int> deliveryByHour = {};
-    for (final stat in stats) {
-      if (stat.districtId == 1 || stat.districtId == null) {
-        deliveryByHour[stat.hour] = (deliveryByHour[stat.hour] ?? 0) + stat.delivered;
-      }
+    // Use MQTT data if available, otherwise fall back to API data
+    if (_combinedMqttData.isNotEmpty) {
+      return _buildCombinedChartFromMqtt(_combinedMqttData);
     }
     
+    if (stats.isEmpty) return const SizedBox.shrink();
+
+    // The API already filtered by district, so aggregate all returned rows by hour.
+    final Map<int, int> deliveryByHour = {};
+    for (final stat in stats) {
+      deliveryByHour[stat.hour] = (deliveryByHour[stat.hour] ?? 0) + stat.delivered;
+    }
+
     if (deliveryByHour.isEmpty) return const SizedBox.shrink();
-    
+
     final sortedHours = deliveryByHour.keys.toList()..sort();
-    int minY = deliveryByHour.values.reduce(math.min);
-    int maxY = deliveryByHour.values.reduce(math.max);
-    
-    final chartData = sortedHours.map((hour) => {
-      'formattedHour': '$hour:00',
-      'delivered': deliveryByHour[hour]!,
-      'hour': hour,
-      'zero': 0,
-    }).toList();
-    
-    return Chart(
-      data: chartData,
-      variables: {
-        'formattedHour': Variable(
-          accessor: (Map datum) => datum['formattedHour'] as String,
-        ),
-        'delivered': Variable(
-          accessor: (Map datum) => datum['delivered'] as num,
-          scale: LinearScale(min: minY.toDouble(), max: maxY.toDouble()),
-        ),
-        'zero': Variable(
-          accessor: (Map datum) => datum['zero'] as num,
-          scale: LinearScale(min: minY.toDouble(), max: maxY.toDouble()),
-        ),
-      },
-      marks: [
-        // Zero baseline reference line
-        LineMark(
-          position: Varset('formattedHour') * Varset('zero'),
-          color: ColorEncode(value: Colors.black),
-          size: SizeEncode(value: 1),
-        ),
-        IntervalMark(
-          position: Varset('formattedHour') * Varset('delivered'),
-          color: ColorEncode(
-            encoder: (Tuple tuple) {
-              final value = tuple['delivered'] as num;
-              return value < 0 ? Colors.red.shade400 : Colors.purple.shade400;
-            },
+    final chartData = sortedHours
+        .map((hour) => {'formattedHour': '$hour:00', 'delivered': deliveryByHour[hour]!})
+        .toList();
+
+    return SfCartesianChart(
+      primaryXAxis: const CategoryAxis(
+        labelRotation: -45,
+        labelStyle: TextStyle(fontSize: 10),
+      ),
+      primaryYAxis: NumericAxis(
+        plotBands: <PlotBand>[
+          PlotBand(
+            start: 0,
+            end: 0,
+            borderWidth: 1,
+            borderColor: Colors.black,
           ),
+        ],
+      ),
+      tooltipBehavior: TooltipBehavior(enable: true),
+      series: <CartesianSeries<Map<String, dynamic>, String>>[
+        ColumnSeries<Map<String, dynamic>, String>(
+          dataSource: chartData,
+          xValueMapper: (datum, _) => datum['formattedHour'] as String,
+          yValueMapper: (datum, _) => datum['delivered'] as num,
+          pointColorMapper: (datum, _) =>
+              (datum['delivered'] as num) < 0 ? Colors.red.shade400 : Colors.purple.shade400,
         ),
       ],
-      axes: [
-        Defaults.horizontalAxis
-          ..label = (LabelStyle(
-            textStyle: Defaults.textStyle.copyWith(fontSize: 10),
-            rotation: -math.pi / 4,
-            offset: const Offset(0, 5),
-          )),
-        Defaults.verticalAxis,
-      ],
-      coord: RectCoord(
-        horizontalRange: [0.05, 0.95],
-        verticalRange: [0.05, 0.85],
-      ),
-      selections: {
-        'tap': PointSelection(
-          on: {GestureType.tap},
-        )
-      },
-      tooltip: TooltipGuide(
-        followPointer: [false, true],
-        align: Alignment.topLeft,
-        offset: const Offset(-20, -20),
-      ),
     );
   }
 
   /// Build bar chart for individual route using both MQTT and API data
   Widget _buildRouteBarChart(List<Map<String, dynamic>> mqttData, List<RouteDistrictStats> apiData, List<SpeedPair> speedData) {
     if (mqttData.isEmpty && apiData.isEmpty) return const SizedBox.shrink();
-    
+
     // Use MQTT data if available, otherwise use API data
     if (mqttData.isNotEmpty) {
       return _buildBarChart(mqttData);
     }
-    
-    // Convert API data to chart format
+
     if (apiData.isEmpty) return const SizedBox.shrink();
-    
+
     final sortedData = apiData..sort((a, b) => a.hour.compareTo(b.hour));
-    int minY = sortedData.map((s) => s.delivered).reduce(math.min);
-    int maxY = sortedData.map((s) => s.delivered).reduce(math.max);
-    
-    final chartData = sortedData.asMap().entries.map((entry) => {
-      'formattedHour': '${entry.value.hour}:00',
-      'delivered': entry.value.delivered,
-      'index': entry.key,
-      'zero': 0,
-    }).toList();
-    
-    return Chart(
-      data: chartData,
-      variables: {
-        'formattedHour': Variable(
-          accessor: (Map datum) => datum['formattedHour'] as String,
-        ),
-        'delivered': Variable(
-          accessor: (Map datum) => datum['delivered'] as num,
-          scale: LinearScale(min: minY.toDouble(), max: maxY.toDouble()),
-        ),
-        'zero': Variable(
-          accessor: (Map datum) => datum['zero'] as num,
-          scale: LinearScale(min: minY.toDouble(), max: maxY.toDouble()),
-        ),
-      },
-      marks: [
-        // Zero baseline reference line
-        LineMark(
-          position: Varset('formattedHour') * Varset('zero'),
-          color: ColorEncode(value: Colors.black),
-          size: SizeEncode(value: 1),
-        ),
-        IntervalMark(
-          position: Varset('formattedHour') * Varset('delivered'),
-          color: ColorEncode(
-            encoder: (Tuple tuple) {
-              final value = tuple['delivered'] as num;
-              return value < 0 ? Colors.red.shade400 : Colors.green.shade400;
-            },
-          ),
-        ),
-      ],
-      axes: [
-        Defaults.horizontalAxis
-          ..label = (LabelStyle(
-            textStyle: Defaults.textStyle.copyWith(fontSize: 9),
-            rotation: -math.pi / 4,
-            offset: const Offset(0, 5),
-          )),
-        Defaults.verticalAxis,
-      ],
-      coord: RectCoord(
-        horizontalRange: [0.05, 0.95],
-        verticalRange: [0.05, 0.85],
+    final chartData = sortedData
+        .map((s) => {'formattedHour': '${s.hour}:00', 'delivered': s.delivered})
+        .toList();
+
+    return SfCartesianChart(
+      primaryXAxis: const CategoryAxis(
+        labelRotation: -45,
+        labelStyle: TextStyle(fontSize: 9),
       ),
-      selections: {
-        'tap': PointSelection(
-          on: {GestureType.tap},
-        )
-      },
-      tooltip: TooltipGuide(
-        followPointer: [false, true],
-        align: Alignment.topLeft,
-        offset: const Offset(-20, -20),
+      primaryYAxis: NumericAxis(
+        plotBands: <PlotBand>[
+          PlotBand(
+            start: 0,
+            end: 0,
+            borderWidth: 1,
+            borderColor: Colors.black,
+          ),
+        ],
+      ),
+      tooltipBehavior: TooltipBehavior(enable: true),
+      series: <CartesianSeries<Map<String, dynamic>, String>>[
+        ColumnSeries<Map<String, dynamic>, String>(
+          dataSource: chartData,
+          xValueMapper: (datum, _) => datum['formattedHour'] as String,
+          yValueMapper: (datum, _) => datum['delivered'] as num,
+          pointColorMapper: (datum, _) =>
+              (datum['delivered'] as num) < 0 ? Colors.red.shade400 : Colors.green.shade400,
+        ),
+      ],
+    );
+  }
+
+  /// Build combined chart from MQTT data with both bars and cumulative line
+  Widget _buildCombinedChartFromMqtt(List<Map<String, dynamic>> data) {
+    if (data.isEmpty) return const SizedBox.shrink();
+
+    final chartData = data
+        .map((item) => {
+              'formattedHour': '${item['hour']}:00',
+              'delivered': item['delivered'] as int? ?? 0,
+              'cumulativeDelivered': item['cumulativeDelivered'] as int? ?? 0,
+            })
+        .toList();
+
+    return SizedBox(
+      height: 250,
+      child: SfCartesianChart(
+        primaryXAxis: const CategoryAxis(
+          labelRotation: -45,
+          labelStyle: TextStyle(fontSize: 10),
+        ),
+        primaryYAxis: NumericAxis(
+          plotBands: <PlotBand>[
+            PlotBand(
+              start: 0,
+              end: 0,
+              borderWidth: 1,
+              borderColor: Colors.black,
+            ),
+          ],
+        ),
+        legend: const Legend(isVisible: true, position: LegendPosition.bottom),
+        tooltipBehavior: TooltipBehavior(enable: true),
+        series: <CartesianSeries<Map<String, dynamic>, String>>[
+          ColumnSeries<Map<String, dynamic>, String>(
+            name: 'Delivered',
+            dataSource: chartData,
+            xValueMapper: (datum, _) => datum['formattedHour'] as String,
+            yValueMapper: (datum, _) => datum['delivered'] as num,
+            pointColorMapper: (datum, _) =>
+                (datum['delivered'] as num) < 0 ? Colors.red.shade400 : Colors.purple.shade400,
+          ),
+          LineSeries<Map<String, dynamic>, String>(
+            name: 'Cumulative',
+            dataSource: chartData,
+            xValueMapper: (datum, _) => datum['formattedHour'] as String,
+            yValueMapper: (datum, _) => datum['cumulativeDelivered'] as num,
+            color: Colors.deepPurple,
+            width: 3,
+            markerSettings: const MarkerSettings(
+              isVisible: true,
+              color: Colors.deepPurple,
+              shape: DataMarkerType.circle,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  /// Build a combination chart with bars and line using Graphic library (existing MQTT data)
+  /// Build a combination chart with bars and cumulative line (existing MQTT data)
   Widget _buildBarChart(List<Map<String, dynamic>> data) {
     if (data.isEmpty) return const SizedBox.shrink();
-    int minY = 0;
-    int maxY = 0;
 
-    // Prepare data for Graphic chart
-    final chartData = data.asMap().entries.map((entry) {
-      final index = entry.key;
-      final item = entry.value;
-      int deliveredValue = (item['delivered'] as int? ?? 0);
-      minY = math.min(minY, deliveredValue);
-      maxY = math.max(maxY, deliveredValue);
-      int cumulativeDeliveredValue = (item['cumulativeDelivered'] as int? ?? 0);
-      minY = math.min(minY, cumulativeDeliveredValue);
-      maxY = math.max(maxY, cumulativeDeliveredValue);
-      return {
-        'formattedHour': '${item['hour']}:00', // Format hour as string for discrete axis
-        // 'hour': (item['hour'] as int? ?? 0) * 10, // Use index as fallback for hour
-        'delivered': deliveredValue,
-        'cumulativeDelivered': cumulativeDeliveredValue,
-        'index': index,
-        'zero': 0,
-      };
-    }).toList();
+    final chartData = data
+        .map((item) => {
+              'formattedHour': '${item['hour']}:00',
+              'delivered': item['delivered'] as int? ?? 0,
+              'cumulativeDelivered': item['cumulativeDelivered'] as int? ?? 0,
+            })
+        .toList();
 
     return SizedBox(
       height: 200,
-      child: Chart(
-        data: chartData,
-        variables: {
-          'index': Variable(
-            accessor: (Map datum) => datum['index'].toString()
-            // scale: OrdinalScale(),
+      child: SfCartesianChart(
+        primaryXAxis: const CategoryAxis(
+          labelRotation: -45,
+          labelStyle: TextStyle(fontSize: 9),
+        ),
+        primaryYAxis: NumericAxis(
+          plotBands: <PlotBand>[
+            PlotBand(
+              start: 0,
+              end: 0,
+              borderWidth: 1,
+              borderColor: Colors.black,
+            ),
+          ],
+        ),
+        legend: const Legend(isVisible: true, position: LegendPosition.bottom),
+        tooltipBehavior: TooltipBehavior(enable: true),
+        series: <CartesianSeries<Map<String, dynamic>, String>>[
+          ColumnSeries<Map<String, dynamic>, String>(
+            name: 'Delivered',
+            dataSource: chartData,
+            xValueMapper: (datum, _) => datum['formattedHour'] as String,
+            yValueMapper: (datum, _) => datum['delivered'] as num,
+            pointColorMapper: (datum, _) =>
+                (datum['delivered'] as num) < 0 ? Colors.red.shade400 : Colors.green.shade400,
           ),
-          // 'indexNum': Variable(
-          //   accessor: (Map datum) => datum['index'] as num,
-          // ),
-          'delivered': Variable(
-            accessor: (Map datum) => datum['delivered'] as num,
-            scale: LinearScale(min: minY.toDouble(), max: maxY.toDouble()),
-          ),
-          'cumulativeDelivered': Variable(
-            accessor: (Map datum) => datum['cumulativeDelivered'] as num,
-            scale: LinearScale(min: minY.toDouble(), max: maxY.toDouble()),
-          ),
-          'formattedHour': Variable(
-            accessor: (Map datum) => datum['formattedHour'] as String,
-            // accessor: (Map datum) => datum['hour'] as num,
-          ),
-          'zero': Variable(
-            accessor: (Map datum) => datum['zero'] as num,
-            scale: LinearScale(min: minY.toDouble(), max: maxY.toDouble()),
-          ),
-        },
-        marks: [
-          // Zero baseline reference line
-          LineMark(
-            position: Varset('formattedHour') * Varset('zero'),
-            color: ColorEncode(value: Colors.black),
-            size: SizeEncode(value: 1),
-          ),
-          // Bar marks for delivered values using discrete positions
-          IntervalMark(
-            position: Varset('formattedHour') * Varset('delivered'),
-            color: ColorEncode(
-              encoder: (Tuple tuple) {
-                final value = tuple['delivered'] as num;
-                return value < 0 ? Colors.red.shade400 : Colors.green.shade400;
-              },
+          LineSeries<Map<String, dynamic>, String>(
+            name: 'Cumulative',
+            dataSource: chartData,
+            xValueMapper: (datum, _) => datum['formattedHour'] as String,
+            yValueMapper: (datum, _) => datum['cumulativeDelivered'] as num,
+            color: Colors.blue,
+            width: 3,
+            markerSettings: const MarkerSettings(
+              isVisible: true,
+              color: Colors.blue,
+              shape: DataMarkerType.circle,
             ),
           ),
-          // Line marks for cumulative delivered values using numeric positions  
-          LineMark(
-            position: Varset('formattedHour') * Varset('cumulativeDelivered'),
-            color: ColorEncode(value: Colors.blue),
-            size: SizeEncode(value: 3),
-          ),
-          // Point marks for cumulative delivered values
-          PointMark(
-            position: Varset('formattedHour') * Varset('cumulativeDelivered'),
-            color: ColorEncode(value: Colors.blue),
-            size: SizeEncode(value: 6),
-          ),
         ],
-        axes: [
-          Defaults.horizontalAxis
-            ..label = (LabelStyle(
-              textStyle: Defaults.textStyle.copyWith(fontSize: 9),
-              rotation: -math.pi / 4,
-              offset: const Offset(0, 5),
-            )),
-          Defaults.verticalAxis,
-        ],
-        coord: RectCoord(
-          horizontalRange: [0.05, 0.95],
-          verticalRange: [0.05, 0.85],
-        ),
-        selections: {
-          'tap': PointSelection(
-            on: {GestureType.tap},
-          )
-        },
-        tooltip: TooltipGuide(
-          followPointer: [false, true],
-          align: Alignment.topLeft,
-          offset: const Offset(-20, -20),
-        ),
-        crosshair: CrosshairGuide(),
       ),
     );
   }

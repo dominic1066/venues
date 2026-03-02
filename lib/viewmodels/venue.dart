@@ -47,7 +47,7 @@ class Venue {
       'description': description,
       'latitude': latitude,
       'longitude': longitude,
-      'last_observation': lastObservation?.toIso8601String(),};
+      'last_observation': lastObservation?.toIso8601String(),
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       if (lastObservation != null) 'last_observation': lastObservation!.toIso8601String(),

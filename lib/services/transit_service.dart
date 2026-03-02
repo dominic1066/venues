@@ -5,7 +5,8 @@ import '../models/models.dart';
 
 enum ApiServer {
   localhost('http://localhost:3000'),
-  ngrok('https://edgy-nonluminescent-kymani.ngrok-free.dev');
+  ngrok('https://edgy-nonluminescent-kymani.ngrok-free.dev'),
+  hzReborn('http://hz-reborn:3000');
 
   final String url;
   const ApiServer(this.url);

@@ -89,6 +89,31 @@ class ServerSelector extends StatelessWidget {
             ],
           ),
         ),
+        PopupMenuItem(
+          value: ApiServer.hzReborn,
+          child: Row(
+            children: [
+              Icon(
+                Icons.cloud_queue,
+                color: currentServer == ApiServer.hzReborn
+                    ? Colors.blue
+                    : Colors.grey,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'HZ Reborn',
+                style: TextStyle(
+                  fontWeight: currentServer == ApiServer.hzReborn
+                      ? FontWeight.bold
+                      : FontWeight.normal,
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (currentServer == ApiServer.hzReborn)
+                const Icon(Icons.check, color: Colors.blue, size: 16),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -99,6 +124,8 @@ class ServerSelector extends StatelessWidget {
         return 'Localhost';
       case ApiServer.ngrok:
         return 'Ngrok';
+      case ApiServer.hzReborn:
+        return 'HZ Reborn';
     }
   }
 }

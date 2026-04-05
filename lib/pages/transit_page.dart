@@ -514,6 +514,14 @@ class _TransitPageState extends State<TransitPage> {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.tune),
+              title: const Text('Route Configurations'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.pushReplacementNamed(context, '/route-configs');
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.wifi),
               title: const Text('Live Updates'),
               subtitle: const Text('MQTT Real-time'),

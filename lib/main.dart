@@ -7,6 +7,7 @@ import 'pages/transit_analysis_page.dart';
 import 'pages/view_single_trip_page.dart';
 import 'pages/occupancy_transitions_page.dart';
 import 'pages/vehicles_page.dart';
+import 'pages/route_configs_page.dart';
 import 'services/transit_service.dart';
 import 'config/api_config.dart';
 import 'config/mqtt_config.dart';
@@ -40,6 +41,7 @@ class MyApp extends StatelessWidget {
             '/view-single-trip': (context) => const ViewSingleTripPage(),
             '/occupancy-transitions': (context) => const OccupancyTransitionsPage(),
             '/vehicles': (context) => const VehiclesPage(),
+            '/route-configs': (context) => const RouteConfigsPage(),
           },
         ),
       ),

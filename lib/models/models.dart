@@ -18,6 +18,10 @@ export 'trip.dart';
 export 'route_district_stats.dart';
 export 'occupancy_transition.dart';
 export 'vehicle.dart';
+export 'unmatched_vehicle.dart';
+export 'transit_vehicle_seating_code.dart';
+export 'route_config.dart';
+export 'bus_australia_result.dart';
 export 'hourly_speed.dart';
 
 // MQTT-related enums and types

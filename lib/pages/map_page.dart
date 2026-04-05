@@ -680,6 +680,14 @@ class _MapPageState extends State<MapPage> with WidgetsBindingObserver {
               Navigator.pushReplacementNamed(context, '/vehicles');
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.tune),
+            title: const Text('Route Configurations'),
+            onTap: () {
+              Navigator.pop(context); // Close drawer
+              Navigator.pushReplacementNamed(context, '/route-configs');
+            },
+          ),
           const Divider(),
           // MQTT Connection Status
           if (_mqttManager != null)

@@ -680,6 +680,165 @@ class TransitService {
   }
 
 
+  /// Get unmatched vehicles for a city
+  /// Returns vehicles observed in transit data but not registered in the vehicle database
+  Future<List<UnmatchedVehicle>> getUnmatchedVehicles(int cityId) async {
+    final endpoint = '/transit/GetUnmatchedVehicles?cityId=$cityId';
+
+    try {
+      if (enableDiagnostics) {
+        debugPrint('🚌 Transit: Getting unmatched vehicles for city $cityId');
+      }
+
+      final response = await _client.get(
+        Uri.parse('$_baseUrl$endpoint'),
+        headers: {'Accept': 'text/plain'},
+      );
+
+      final data = _handleResponse(response, endpoint);
+      final vehiclesData = data['unmatchedVehicles'] as List<dynamic>?;
+
+      if (vehiclesData == null) {
+        throw ApiException(
+          message: 'Invalid response format: missing unmatchedVehicles array',
+          endpoint: endpoint,
+        );
+      }
+
+      return vehiclesData
+          .map((v) => UnmatchedVehicle.fromJson(v as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Network error: $e', endpoint: endpoint);
+    }
+  }
+
+  /// Get a transit vehicle seating code by code string
+  /// Returns null if the seating code is not in the database
+  Future<TransitVehicleSeatingCode?> getTransitVehicleSeatingCode(String seatingCode) async {
+    final endpoint = '/transit/GetTransitVehicleSeatingCode?seatingCode=${Uri.encodeComponent(seatingCode)}';
+
+    try {
+      if (enableDiagnostics) {
+        debugPrint('🚌 Transit: Looking up seating code $seatingCode');
+      }
+
+      final response = await _client.get(
+        Uri.parse('$_baseUrl$endpoint'),
+        headers: {'Accept': 'text/plain'},
+      );
+
+      final data = _handleResponse(response, endpoint);
+      final codesData = data['seatingCodes'] as List<dynamic>?;
+
+      if (codesData == null || codesData.isEmpty) return null;
+
+      return TransitVehicleSeatingCode.fromJson(codesData.first as Map<String, dynamic>);
+    } on ApiException catch (e) {
+      if (e.statusCode == 400 || e.statusCode == 404) return null;
+      rethrow;
+    } catch (e) {
+      throw ApiException(message: 'Network error: $e', endpoint: endpoint);
+    }
+  }
+
+  /// Get route configurations for a city
+  /// Returns the list of RouteConfig records for the given cityId
+  Future<List<RouteConfig>> getRouteConfigs(int cityId) async {
+    final endpoint = '/transit/GetRouteConfigs?cityId=$cityId';
+
+    try {
+      if (enableDiagnostics) {
+        debugPrint('🚌 Transit: Getting route configs for city $cityId');
+      }
+
+      final response = await _client.get(
+        Uri.parse('$_baseUrl$endpoint'),
+        headers: {'Accept': 'text/plain'},
+      );
+
+      final data = _handleResponse(response, endpoint);
+      final configsData = data['routeConfigs'] as List<dynamic>?;
+
+      if (configsData == null) return [];
+
+      return configsData
+          .map((e) => RouteConfig.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Network error: $e', endpoint: endpoint);
+    }
+  }
+
+  /// Submit a route configuration
+  /// Creates or updates a route configuration record; returns true on success
+  Future<bool> submitRouteConfig(RouteConfig config) async {
+    const endpoint = '/transit/SubmitRouteConfig';
+
+    try {
+      if (enableDiagnostics) {
+        debugPrint('🚌 Transit: Submitting route config for route ${config.routeId}');
+      }
+
+      final response = await _client.post(
+        Uri.parse('$_baseUrl$endpoint'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode(config.toJson()),
+      );
+
+      final data = _handleResponse(response, endpoint);
+      return data['success'] as bool? ?? false;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Network error: $e', endpoint: endpoint);
+    }
+  }
+
+  /// Submit a transit vehicle seating code
+  /// Creates or updates a seating configuration record; returns the id of the record
+  Future<int> submitTransitVehicleSeatingCode(TransitVehicleSeatingCode seatingCode) async {
+    const endpoint = '/transit/SubmitTransitVehicleSeatingCode';
+
+    try {
+      if (enableDiagnostics) {
+        debugPrint('🚌 Transit: Submitting seating code ${seatingCode.seatingCode}');
+      }
+
+      final response = await _client.post(
+        Uri.parse('$_baseUrl$endpoint'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: jsonEncode(seatingCode.toJson()),
+      );
+
+      final data = _handleResponse(response, endpoint);
+      final id = data['id'] as int?;
+
+      if (id == null) {
+        throw ApiException(
+          message: 'Invalid response format: missing id',
+          endpoint: endpoint,
+        );
+      }
+
+      if (enableDiagnostics) {
+        debugPrint('✅ Seating code submitted, id: $id');
+      }
+
+      return id;
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException(message: 'Network error: $e', endpoint: endpoint);
+    }
+  }
+
   /// Get hourly speed data by district
   /// Returns hourly speed statistics for transit routes grouped by route and hour,
   /// with separate inward and outward speed measurements

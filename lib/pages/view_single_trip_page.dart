@@ -357,6 +357,14 @@ class _ViewSingleTripPageState extends State<ViewSingleTripPage> {
               Navigator.pushReplacementNamed(context, '/vehicles');
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.tune),
+            title: const Text('Route Configurations'),
+            onTap: () {
+              Navigator.pop(context); // Close drawer
+              Navigator.pushReplacementNamed(context, '/route-configs');
+            },
+          ),
         ],
       ),
     );

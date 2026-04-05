@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/transit_service.dart';
+import '../services/external_service.dart';
 import '../models/models.dart';
 import '../config/api_config.dart';
 import '../widgets/server_selector.dart';
@@ -14,6 +15,7 @@ class VehiclesPage extends StatefulWidget {
 
 class _VehiclesPageState extends State<VehiclesPage> {
   late TransitService _transitService;
+  late ExternalService _externalService;
   final TextEditingController _searchController = TextEditingController();
   
   List<TransitCity> _cities = [];
@@ -37,6 +39,10 @@ class _VehiclesPageState extends State<VehiclesPage> {
     if (_currentServer != server) {
       _currentServer = server;
       _transitService = TransitService(
+        server: server,
+        enableDiagnostics: true,
+      );
+      _externalService = ExternalService(
         server: server,
         enableDiagnostics: true,
       );
@@ -98,6 +104,31 @@ class _VehiclesPageState extends State<VehiclesPage> {
       });
       _loadVehicles();
     }
+  }
+
+  Future<void> _showUnmatchedVehiclesDialog() async {
+    if (_selectedCity == null) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => _UnmatchedVehiclesDialog(
+        cityId: _selectedCity!.id,
+        cityName: _selectedCity!.name,
+        transitService: _transitService,
+        externalService: _externalService,
+        onVehicleAdded: () {
+          _loadVehicles();
+          setState(() {
+            _submitMessage = 'Vehicle added successfully!';
+            _submitError = null;
+          });
+          Timer(const Duration(seconds: 3), () {
+            if (mounted) setState(() => _submitMessage = null);
+          });
+        },
+      ),
+    );
   }
 
   void _showAddVehicleDialog({Vehicle? template}) {
@@ -182,6 +213,14 @@ class _VehiclesPageState extends State<VehiclesPage> {
             title: const Text('Vehicles'),
             selected: true,
             onTap: () => Navigator.pop(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.tune),
+            title: const Text('Route Configurations'),
+            onTap: () {
+              Navigator.pop(context); // Close drawer
+              Navigator.pushReplacementNamed(context, '/route-configs');
+            },
           ),
         ],
       ),
@@ -426,6 +465,14 @@ class _VehiclesPageState extends State<VehiclesPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Vehicles'),
+        actions: [
+          if (_selectedCity != null)
+            IconButton(
+              icon: const Icon(Icons.search_off),
+              tooltip: 'Show Unmatched Vehicles',
+              onPressed: _showUnmatchedVehiclesDialog,
+            ),
+        ],
       ),
       drawer: _buildDrawer(),
       body: _buildBody(),
@@ -444,6 +491,12 @@ class _AddVehicleDialog extends StatefulWidget {
   final int cityId;
   final TransitService transitService;
   final Vehicle? template;
+  final String? initialVehicleId;
+  final String? initialMake;
+  final String? initialModel;
+  final String? initialRegistration;
+  final int? initialSeated;
+  final int? initialStanding;
   final VoidCallback onVehicleAdded;
   final Function(String) onError;
 
@@ -451,6 +504,12 @@ class _AddVehicleDialog extends StatefulWidget {
     required this.cityId,
     required this.transitService,
     this.template,
+    this.initialVehicleId,
+    this.initialMake,
+    this.initialModel,
+    this.initialRegistration,
+    this.initialSeated,
+    this.initialStanding,
     required this.onVehicleAdded,
     required this.onError,
   });
@@ -474,12 +533,20 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
   void initState() {
     super.initState();
     final t = widget.template;
-    _vehicleIdController = TextEditingController(text: t != null ? '${t.vehicleId}_copy' : '');
-    _makeController = TextEditingController(text: t?.make ?? '');
-    _modelController = TextEditingController(text: t?.model ?? '');
-    _registrationController = TextEditingController(text: t?.registration ?? '');
-    _seatedController = TextEditingController(text: t?.passengersSeated.toString() ?? '');
-    _standingController = TextEditingController(text: t?.passengersStanding.toString() ?? '');
+    _vehicleIdController = TextEditingController(
+      text: widget.initialVehicleId ?? (t != null ? '${t.vehicleId}_copy' : ''),
+    );
+    _makeController = TextEditingController(text: widget.initialMake ?? t?.make ?? '');
+    _modelController = TextEditingController(text: widget.initialModel ?? t?.model ?? '');
+    _registrationController = TextEditingController(
+      text: widget.initialRegistration ?? t?.registration ?? '',
+    );
+    _seatedController = TextEditingController(
+      text: widget.initialSeated?.toString() ?? t?.passengersSeated.toString() ?? '',
+    );
+    _standingController = TextEditingController(
+      text: widget.initialStanding?.toString() ?? t?.passengersStanding.toString() ?? '',
+    );
   }
 
   @override
@@ -668,6 +735,530 @@ class _AddVehicleDialogState extends State<_AddVehicleDialog> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text('Add Vehicle'),
+        ),
+      ],
+    );
+  }
+}
+
+class _UnmatchedVehiclesDialog extends StatefulWidget {
+  final int cityId;
+  final String cityName;
+  final TransitService transitService;
+  final ExternalService externalService;
+  final VoidCallback onVehicleAdded;
+
+  const _UnmatchedVehiclesDialog({
+    required this.cityId,
+    required this.cityName,
+    required this.transitService,
+    required this.externalService,
+    required this.onVehicleAdded,
+  });
+
+  @override
+  State<_UnmatchedVehiclesDialog> createState() => _UnmatchedVehiclesDialogState();
+}
+
+class _UnmatchedVehiclesDialogState extends State<_UnmatchedVehiclesDialog> {
+  List<UnmatchedVehicle>? _vehicles;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final vehicles = await widget.transitService.getUnmatchedVehicles(widget.cityId);
+      if (mounted) {
+        setState(() {
+          _vehicles = vehicles;
+          _error = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Unmatched Vehicles – ${widget.cityName}'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: _buildContent(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent() {
+    if (_error != null) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error, color: Colors.red, size: 48),
+          const SizedBox(height: 8),
+          Text(_error!),
+          const SizedBox(height: 8),
+          ElevatedButton(onPressed: _load, child: const Text('Retry')),
+        ],
+      );
+    }
+
+    if (_vehicles == null) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_vehicles!.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('No unmatched vehicles found.'),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '${_vehicles!.length} unmatched vehicle${_vehicles!.length == 1 ? '' : 's'}',
+          style: const TextStyle(color: Colors.grey),
+        ),
+        const SizedBox(height: 8),
+        Flexible(
+          child: ListView.separated(
+            shrinkWrap: true,
+            itemCount: _vehicles!.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              final vehicleId = _vehicles![index].vehicleId;
+              return ListTile(
+                leading: const Icon(Icons.directions_bus_outlined, size: 18, color: Colors.orange),
+                title: Text(vehicleId),
+                trailing: const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+                onTap: () => showDialog(
+                  context: context,
+                  builder: (_) => _BusAustraliaResultDialog(
+                    cityId: widget.cityId,
+                    vehicleId: vehicleId,
+                    externalService: widget.externalService,
+                    transitService: widget.transitService,
+                    onVehicleAdded: widget.onVehicleAdded,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BusAustraliaResultDialog extends StatefulWidget {
+  final int cityId;
+  final String vehicleId;
+  final ExternalService externalService;
+  final TransitService transitService;
+  final VoidCallback onVehicleAdded;
+
+  const _BusAustraliaResultDialog({
+    required this.cityId,
+    required this.vehicleId,
+    required this.externalService,
+    required this.transitService,
+    required this.onVehicleAdded,
+  });
+
+  @override
+  State<_BusAustraliaResultDialog> createState() => _BusAustraliaResultDialogState();
+}
+
+class _BusAustraliaResultDialogState extends State<_BusAustraliaResultDialog> {
+  BusAustraliaSearchResponse? _response;
+  String? _error;
+
+  Future<void> _onResultSelected(BuildContext context, BusAustraliaResult result) async {
+    TransitVehicleSeatingCode? seatingCode;
+
+    if (result.seatingCodes != null && result.seatingCodes!.isNotEmpty) {
+      seatingCode = await widget.transitService.getTransitVehicleSeatingCode(result.seatingCodes!);
+
+      if (!mounted) return;
+
+      if (seatingCode == null) {
+        // Not in the database — ask user to add it
+        seatingCode = await showDialog<TransitVehicleSeatingCode>(
+          context: context,
+          builder: (_) => _AddSeatingCodeDialog(
+            seatingCode: result.seatingCodes!,
+            transitService: widget.transitService,
+          ),
+        );
+        if (!mounted || seatingCode == null) return; // user skipped
+      }
+    }
+
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (_) => _AddVehicleDialog(
+        cityId: widget.cityId,
+        transitService: widget.transitService,
+        initialVehicleId: widget.vehicleId,
+        initialModel: result.chassis,
+        initialRegistration: result.registration,
+        initialSeated: seatingCode?.passengersSeated,
+        initialStanding: seatingCode?.passengersStanding,
+        onVehicleAdded: widget.onVehicleAdded,
+        onError: (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e), backgroundColor: Colors.red),
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _response = null;
+      _error = null;
+    });
+    try {
+      final result = await widget.externalService.busAustraliaSearch(widget.cityId, widget.vehicleId);
+      if (mounted) setState(() => _response = result);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Bus Australia – ${widget.vehicleId}'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: _buildContent(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContent() {
+    if (_error != null) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error, color: Colors.red, size: 48),
+          const SizedBox(height: 8),
+          Text(_error!),
+          const SizedBox(height: 8),
+          ElevatedButton(onPressed: _load, child: const Text('Retry')),
+        ],
+      );
+    }
+
+    if (_response == null) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    if (_response!.results.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('No records found on Bus Australia for this vehicle.'),
+            const SizedBox(height: 16),
+            TextButton.icon(
+              icon: const Icon(Icons.help_outline),
+              label: const Text('Add Vehicle as Unknown?'),
+              onPressed: () => _addAsUnknown(context),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ..._response!.results.map((r) => _ResultCard(
+                result: r,
+                onTap: () => _onResultSelected(context, r),
+              )),
+          const Divider(),
+          TextButton.icon(
+            icon: const Icon(Icons.help_outline),
+            label: const Text('Add Vehicle as Unknown?'),
+            onPressed: () => _addAsUnknown(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addAsUnknown(BuildContext context) {
+    Navigator.pop(context);
+    showDialog(
+      context: context,
+      builder: (_) => _AddVehicleDialog(
+        cityId: widget.cityId,
+        transitService: widget.transitService,
+        initialVehicleId: widget.vehicleId,
+        initialModel: 'UNKNOWN',
+        initialRegistration: 'UNKNOWN',
+        initialSeated: 35,
+        initialStanding: 25,
+        onVehicleAdded: widget.onVehicleAdded,
+        onError: (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(e), backgroundColor: Colors.red),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ResultCard extends StatelessWidget {
+  final BusAustraliaResult result;
+  final VoidCallback? onTap;
+
+  const _ResultCard({required this.result, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (result.operator != null)
+                  _Row(label: 'Operator', value: result.operator!),
+                if (result.chassis != null)
+                  _Row(label: 'Chassis', value: result.chassis!),
+                if (result.registration != null)
+                  _Row(label: 'Registration', value: result.registration!),
+                if (result.seatingCodes != null)
+                  _Row(label: 'Seating', value: result.seatingCodes!),
+              ],
+            ),
+          ),
+          if (onTap != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8, bottom: 4),
+                child: TextButton.icon(
+                  onPressed: onTap,
+                  icon: const Icon(Icons.add_circle_outline, size: 16),
+                  label: const Text('Add as Vehicle'),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Row extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _Row({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          ),
+          Expanded(child: Text(value, style: const TextStyle(fontWeight: FontWeight.w500))),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddSeatingCodeDialog extends StatefulWidget {
+  final String seatingCode;
+  final TransitService transitService;
+
+  const _AddSeatingCodeDialog({
+    required this.seatingCode,
+    required this.transitService,
+  });
+
+  @override
+  State<_AddSeatingCodeDialog> createState() => _AddSeatingCodeDialogState();
+}
+
+class _AddSeatingCodeDialogState extends State<_AddSeatingCodeDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _seatedController = TextEditingController();
+  final _standingController = TextEditingController();
+  bool _isSubmitting = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _seatedController.dispose();
+    _standingController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _isSubmitting = true;
+      _error = null;
+    });
+    try {
+      final code = TransitVehicleSeatingCode(
+        seatingCode: widget.seatingCode,
+        passengersSeated: int.parse(_seatedController.text),
+        passengersStanding: int.parse(_standingController.text),
+      );
+      await widget.transitService.submitTransitVehicleSeatingCode(code);
+      if (mounted) Navigator.pop(context, code);
+    } catch (e) {
+      setState(() {
+        _isSubmitting = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Add Seating Code'),
+      content: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Seating code "${widget.seatingCode}" is not in the database.',
+                style: const TextStyle(fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Enter the passenger capacities to add it before continuing.',
+                style: TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                readOnly: true,
+                initialValue: widget.seatingCode,
+                decoration: const InputDecoration(
+                  labelText: 'Seating Code',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _seatedController,
+                decoration: const InputDecoration(
+                  labelText: 'Seated Passengers *',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Required';
+                  if (int.tryParse(v) == null || int.parse(v) < 0) return 'Enter a valid number';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _standingController,
+                decoration: const InputDecoration(
+                  labelText: 'Standing Passengers *',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Required';
+                  if (int.tryParse(v) == null || int.parse(v) < 0) return 'Enter a valid number';
+                  return null;
+                },
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 8),
+                Text(_error!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isSubmitting ? null : () => Navigator.pop(context),
+          child: const Text('Skip'),
+        ),
+        ElevatedButton(
+          onPressed: _isSubmitting ? null : _submit,
+          child: _isSubmitting
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Add & Continue'),
         ),
       ],
     );

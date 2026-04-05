@@ -829,6 +829,42 @@ paths:
               schema:
                 type: string
                 example: 'Database error: <message>'
+  /transit/GetUnmatchedVehicles:
+    get:
+      summary: Get unmatched vehicles for a city
+      description: Returns all vehicles that have been observed in transit data but are not registered in the vehicle database for a specific city
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID (integer) - required
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Unmatched vehicles (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"unmatchedVehicles":[{"cityId":1,"vehicleId":"V999","observationCount":15,"lastSeen":"2026-03-28T10:30:00Z"}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"cityId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
   /transit/SubmitRoute:
     post:
       summary: Submit a new transit route
@@ -1019,6 +1055,56 @@ paths:
               schema:
                 type: string
                 example: 'Database error: <message>'
+  /transit/SubmitBulkTransitObservations:
+    post:
+      summary: Submit multiple transit observations in a single call
+      description: |
+        Accepts an array of transit vehicle observations and inserts them all via the
+        InsertTransitObservations stored procedure using a user-defined table type
+        (TransitObservationType). At least one item is required. Each item follows
+        the same shape as SubmitTransitObservation with the addition of an optional
+        headsign field.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              minItems: 1
+              items:
+                $ref: '#/components/schemas/BulkTransitObservationItem'
+      responses:
+        '200':
+          description: All observations successfully inserted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"tripId" is required'
+                  allErrors:
+                    type: array
+                    items:
+                      type: string
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
   /transit/SubmitOccupancyIncrement:
     post:
       summary: Submit an occupancy increment observation
@@ -1133,6 +1219,44 @@ paths:
               schema:
                 type: string
                 example: 'Database error: <message>'
+  /transit/SubmitRouteConfig:
+    post:
+      summary: Submit route configuration settings
+      description: Creates or updates route configuration including legs, terminating district, and error calculation settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RouteConfig'
+      responses:
+        '200':
+          description: Route configuration successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"cityId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
   /transit/SubmitTripStatsbyDistrict:
     post:
       summary: Submit trip statistics aggregated by district
@@ -1171,6 +1295,196 @@ paths:
               schema:
                 type: string
                 example: 'Database error: <message>'
+  /transit/GetTransitVehicleSeatingCode:
+    get:
+      summary: Get transit vehicle seating code details
+      description: Retrieves seating configuration details for a specific seating code
+      parameters:
+        - name: seatingCode
+          in: query
+          description: Seating code to look up (string) - required
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Seating code details (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"seatingCodes":[{"seatingCode":"D47/28SD","passengersSeated":47,"passengersStanding":28,"passengersTotal":75}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"seatingCode" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/GetRouteConfigs:
+    get:
+      summary: Get route configurations for a city
+      description: Retrieves route configuration settings including legs, terminating district, and error calculation settings
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID (integer) - required
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Route configurations (text/plain)
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: '{"routeConfigs":[{"Id":1,"RouteId":"10","Legs":3,"TerminatingDistrict":0,"IncludeInErrorCalculation":true}]}'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"cityId" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /transit/SubmitTransitVehicleSeatingCode:
+    post:
+      summary: Submit transit vehicle seating code data
+      description: Creates or updates seating configuration for transit vehicles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitVehicleSeatingCode'
+      responses:
+        '200':
+          description: Vehicle seating code successfully submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  id:
+                    type: integer
+                    description: ID of the inserted or updated record
+                    example: 123
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"seatingCode" is required'
+        '500':
+          description: Database error
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: 'Database error: <message>'
+  /external/busAustraliaSearch:
+    get:
+      summary: Search Bus Australia fleet data
+      description: Searches the Bus Australia fleet database for vehicle information by vehicle ID
+      parameters:
+        - name: cityId
+          in: query
+          description: City ID (integer) - required
+          required: true
+          schema:
+            type: integer
+        - name: vehicleId
+          in: query
+          description: Vehicle ID to search for (string, max 10 chars) - required
+          required: true
+          schema:
+            type: string
+            maxLength: 10
+      responses:
+        '200':
+          description: Search results from Bus Australia
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  vehicleId:
+                    type: string
+                    description: The searched vehicle ID
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        registration:
+                          type: string
+                          description: Vehicle registration number
+                        chassis:
+                          type: string
+                          description: Chassis type information
+                        seatingCodes:
+                          type: string
+                          description: Seating configuration codes
+                        operator:
+                          type: string
+                          description: Operating company name
+                example:
+                  vehicleId: "V123"
+                  results: [
+                    {
+                      "registration": "ABC123",
+                      "chassis": "Mercedes Citaro",
+                      "seatingCodes": "D47/28SD",
+                      "operator": "TransDev"
+                    }
+                  ]
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: '"vehicleId" is required'
+        '500':
+          description: External service error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: 'Timeout or network error'
   /gtfs/SubmitAgency:
     post:
       summary: Submit GTFS agency data
@@ -1763,6 +2077,77 @@ components:
         id:
           type: integer
           description: Database ID of the route to monitor/unmonitor
+    BulkTransitObservationItem:
+      type: object
+      description: A single transit observation item used in the SubmitBulkTransitObservations array body
+      required:
+        - tripId
+        - cityId
+        - long
+        - lat
+        - bearing
+        - routeId
+        - directionId
+        - startDate
+        - vehicleId
+        - occupancyStatus
+        - timestamp
+      properties:
+        tripId:
+          type: string
+          maxLength: 100
+          description: Unique identifier for the trip
+        cityId:
+          type: integer
+          description: ID of the city
+        shapeId:
+          type: string
+          maxLength: 100
+          nullable: true
+          description: Identifier for the shape/path
+        serviceId:
+          type: string
+          maxLength: 100
+          nullable: true
+          description: Service calendar identifier
+        long:
+          type: number
+          format: float
+          description: Longitude coordinate
+        lat:
+          type: number
+          format: float
+          description: Latitude coordinate
+        bearing:
+          type: number
+          format: float
+          description: Vehicle bearing/heading in degrees
+        routeId:
+          type: string
+          maxLength: 100
+          description: Route identifier
+        directionId:
+          type: integer
+          description: Direction of travel (0 or 1)
+        startDate:
+          type: string
+          format: date
+          description: Service start date
+        vehicleId:
+          type: string
+          maxLength: 10
+          description: Vehicle identifier
+        occupancyStatus:
+          type: integer
+          description: Occupancy status code
+        timestamp:
+          type: integer
+          description: Unix timestamp of the observation
+        headsign:
+          type: string
+          maxLength: 200
+          nullable: true
+          description: Destination headsign displayed on the vehicle
     TransitObservation:
       type: object
       required:
@@ -2457,3 +2842,43 @@ components:
         fieldValue:
           type: string
           description: Original value of the field being translated
+    TransitVehicleSeatingCode:
+      type: object
+      required:
+        - seatingCode
+        - passengersSeated
+        - passengersStanding
+      properties:
+        seatingCode:
+          type: string
+          description: Seating configuration code (e.g., D47/28SD)
+        passengersSeated:
+          type: integer
+          description: Number of seated passenger capacity
+        passengersStanding:
+          type: integer
+          description: Number of standing passenger capacity
+    RouteConfig:
+      type: object
+      required:
+        - cityId
+        - routeId
+        - legs
+        - terminatingDistrict
+        - includeInErrorCalculation
+      properties:
+        cityId:
+          type: integer
+          description: ID of the city this route configuration belongs to
+        routeId:
+          type: string
+          description: Route identifier
+        legs:
+          type: integer
+          description: Number of legs in the route
+        terminatingDistrict:
+          type: integer
+          description: District where the route terminates
+        includeInErrorCalculation:
+          type: boolean
+          description: Whether to include this route in error calculations

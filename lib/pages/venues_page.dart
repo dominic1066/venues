@@ -446,6 +446,14 @@ class _VenuesPageState extends State<VenuesPage> {
                 Navigator.pushReplacementNamed(context, '/vehicles');
               },
             ),
+            ListTile(
+              leading: const Icon(Icons.tune),
+              title: const Text('Route Configurations'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                Navigator.pushReplacementNamed(context, '/route-configs');
+              },
+            ),
           ],
         ),
       ),

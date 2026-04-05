@@ -45,6 +45,9 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
   Map<String, dynamic> _routeSpeedsMap = {};
   bool _isLoadingInitialData = false;
 
+  // Display mode: false = Occupancy Status, true = Passenger Estimates
+  bool _showPassengerEstimates = false;
+
   // Map of route IDs to route short names
   Map<String, String> _routes = {};
   bool _isLoadingRoutes = false;
@@ -573,6 +576,14 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
               Navigator.pushReplacementNamed(context, '/vehicles');
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.tune),
+            title: const Text('Route Configurations'),
+            onTap: () {
+              Navigator.pop(context); // Close drawer
+              Navigator.pushReplacementNamed(context, '/route-configs');
+            },
+          ),
           const Divider(),
           // MQTT Connection Status
           if (_mqttManager != null)
@@ -697,8 +708,15 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
           _buildCitySelector(),
           const SizedBox(height: 12),
 
-          // District selector
-          _buildDistrictSelector(),
+          // District selector and display mode selector side by side
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _buildDistrictSelector()),
+              const SizedBox(width: 8),
+              Expanded(child: _buildDisplayModeSelector()),
+            ],
+          ),
           const SizedBox(height: 24),
 
           // Combined routes delivery chart (at the top)
@@ -794,22 +812,27 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Row(
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
           children: [
-            const Icon(Icons.map_outlined),
-            const SizedBox(width: 12),
-            const Text(
-              'District:',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.map_outlined),
+                const SizedBox(width: 12),
+                const Text(
+                  'District:',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: DropdownButton<District>(
+            DropdownButton<District>(
                 value: _selectedDistrict,
-                isExpanded: true,
                 items: districts.map((district) {
                   return DropdownMenuItem<District>(
                     value: district,
@@ -836,7 +859,6 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
                     });
                   }
                 },
-              ),
             ),
           ],
         ),
@@ -1088,6 +1110,52 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
     return _initialRouteStats[routeId] ?? [];
   }
 
+  Widget _buildDisplayModeSelector() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 8,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.show_chart),
+                const SizedBox(width: 12),
+                const Text(
+                  'Display:',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment<bool>(
+                  value: false,
+                  label: Text('Occupancy Status'),
+                  icon: Icon(Icons.people_outline),
+                ),
+                ButtonSegment<bool>(
+                  value: true,
+                  label: Text('Passenger Estimates'),
+                  icon: Icon(Icons.people),
+                ),
+              ],
+              selected: {_showPassengerEstimates},
+              onSelectionChanged: (Set<bool> selection) {
+                setState(() {
+                  _showPassengerEstimates = selection.first;
+                });
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Build bar chart for combined routes using MQTT data when available, otherwise API data
   Widget _buildCombinedBarChart(List<RouteDistrictStats> stats) {
     // Use MQTT data if available, otherwise fall back to API data
@@ -1100,7 +1168,10 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
     // The API already filtered by district, so aggregate all returned rows by hour.
     final Map<int, int> deliveryByHour = {};
     for (final stat in stats) {
-      deliveryByHour[stat.hour] = (deliveryByHour[stat.hour] ?? 0) + stat.delivered;
+      final value = _showPassengerEstimates
+          ? (stat.passengersDelivered ?? 0)
+          : stat.delivered;
+      deliveryByHour[stat.hour] = (deliveryByHour[stat.hour] ?? 0) + value;
     }
 
     if (deliveryByHour.isEmpty) return const SizedBox.shrink();
@@ -1149,9 +1220,18 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
 
     if (apiData.isEmpty) return const SizedBox.shrink();
 
+    // Check whether passenger estimate data is actually available
+    final hasPassengerData = apiData.any((s) => (s.passengersDelivered ?? 0) != 0);
+    final usePassenger = _showPassengerEstimates && hasPassengerData;
+
     final sortedData = apiData..sort((a, b) => a.hour.compareTo(b.hour));
     final chartData = sortedData
-        .map((s) => {'formattedHour': '${s.hour}:00', 'delivered': s.delivered})
+        .map((s) => {
+              'formattedHour': '${s.hour}:00',
+              'delivered': usePassenger
+                  ? (s.passengersDelivered ?? 0)
+                  : s.delivered,
+            })
         .toList();
 
     return SfCartesianChart(
@@ -1189,8 +1269,12 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
     final chartData = data
         .map((item) => {
               'formattedHour': '${item['hour']}:00',
-              'delivered': item['delivered'] as int? ?? 0,
-              'cumulativeDelivered': item['cumulativeDelivered'] as int? ?? 0,
+              'delivered': (_showPassengerEstimates
+                  ? (item['passengersDelivered'] as num?)?.toInt()
+                  : (item['delivered'] as num?)?.toInt()) ?? 0,
+              'cumulativeDelivered': (_showPassengerEstimates
+                  ? (item['cumulativePassengersDelivered'] as num?)?.toInt()
+                  : (item['cumulativeDelivered'] as num?)?.toInt()) ?? 0,
             })
         .toList();
 
@@ -1247,8 +1331,12 @@ class _TransitAnalysisPageState extends State<TransitAnalysisPage> with WidgetsB
     final chartData = data
         .map((item) => {
               'formattedHour': '${item['hour']}:00',
-              'delivered': item['delivered'] as int? ?? 0,
-              'cumulativeDelivered': item['cumulativeDelivered'] as int? ?? 0,
+              'delivered': (_showPassengerEstimates
+                  ? (item['passengersDelivered'] as num?)?.toInt()
+                  : (item['delivered'] as num?)?.toInt()) ?? 0,
+              'cumulativeDelivered': (_showPassengerEstimates
+                  ? (item['cumulativePassengersDelivered'] as num?)?.toInt()
+                  : (item['cumulativeDelivered'] as num?)?.toInt()) ?? 0,
             })
         .toList();
 

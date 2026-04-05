@@ -4,13 +4,14 @@ class RouteDistrictStats {
   final int hour;
   final int delivered;
   final double? averageSpeed; // Optional - only present when routeId is specified
-
+  final int? passengersDelivered; 
   RouteDistrictStats({
     this.routeId,
     this.districtId,
     required this.hour,
     required this.delivered,
     this.averageSpeed,
+    this.passengersDelivered, // Optional - only present when routeId is specified
   });
 
   factory RouteDistrictStats.fromJson(Map<String, dynamic> json) {
@@ -20,6 +21,7 @@ class RouteDistrictStats {
       hour: json['hour'] as int,
       delivered: json['delivered'] as int,
       averageSpeed: (json['averageSpeed'] as num?)?.toDouble(),
+      passengersDelivered: json['passengersDelivered'] as int?, 
     );
   }
 
@@ -30,6 +32,7 @@ class RouteDistrictStats {
       'hour': hour,
       'delivered': delivered,
       if (averageSpeed != null) 'averageSpeed': averageSpeed,
+      if (passengersDelivered != null) 'passengersDelivered': passengersDelivered,
     };
   }
 
@@ -46,9 +49,10 @@ class RouteDistrictStats {
         other.districtId == districtId &&
         other.hour == hour &&
         other.delivered == delivered &&
-        other.averageSpeed == averageSpeed;
+        other.averageSpeed == averageSpeed &&
+        other.passengersDelivered == passengersDelivered;
   }
 
   @override
-  int get hashCode => routeId.hashCode ^ districtId.hashCode ^ hour.hashCode ^ delivered.hashCode ^ averageSpeed.hashCode;
+  int get hashCode => routeId.hashCode ^ districtId.hashCode ^ hour.hashCode ^ delivered.hashCode ^ averageSpeed.hashCode ^ passengersDelivered.hashCode;
 }
